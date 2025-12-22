@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-// Include your database connection
+
 require 'db.php';
 
 try {
