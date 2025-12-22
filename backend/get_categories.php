@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 require 'db.php';
 
 try {
-    $stmt = $conn->prepare("SELECT id, name FROM category ORDER BY name ASC");
+    $stmt = $pdo->prepare("SELECT id, name FROM categories ORDER BY name ASC");
     $stmt->execute();
     $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

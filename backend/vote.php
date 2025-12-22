@@ -6,8 +6,7 @@ $data = json_decode(file_get_contents('php://input'), true);
 $user_id = $data['user_id'] ?? null;
 $target_type = $data['target_type'] ?? '';
 $target_id = $data['target_id'] ?? null;
-$value = $data['value'] ?? null; // 1 for upvote, -1 for downvote
-
+$value = $data['value'] ?? null; 
 if (!$user_id || !$target_type || !$target_id || !in_array($value, [1, -1])) {
     echo json_encode(['error' => 'Invalid data']);
     exit;

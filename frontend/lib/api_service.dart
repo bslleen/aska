@@ -87,9 +87,9 @@ class ApiService {
 
 
 
-// ------------------------------
-// GET ALL CATEGORIES
-// ------------------------------
+  // ------------------------------
+  // GET ALL CATEGORIES
+  // ------------------------------
 static Future<List<dynamic>> getCategories() async {
   final response = await http.get(Uri.parse('$baseUrl/get_categories.php'));
   if (response.statusCode == 200) {
@@ -98,6 +98,27 @@ static Future<List<dynamic>> getCategories() async {
     throw Exception('Failed to load categories');
   }
 }
+
+  // ------------------------------
+  // CREATE NEW CATEGORY
+  // ------------------------------
+static Future<Map<String, dynamic>> createCategory({
+    required String name,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/create_category.php'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to create category');
+    }
+  }
   // ------------------------------
   // VOTE ON POST OR ANSWER
   // ------------------------------

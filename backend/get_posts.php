@@ -12,3 +12,4 @@ $posts = $stmt->fetchAll();
 
 echo json_encode($posts);
 ?>
+

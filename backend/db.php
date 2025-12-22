@@ -20,4 +20,4 @@ try {
     echo json_encode(['error' => 'DB Connection failed: '.$e->getMessage()]);
     exit;
 }
-?>
+

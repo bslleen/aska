@@ -76,6 +76,21 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // --------------------------
+  // Show Add Category Dialog
+  // --------------------------
+  void _showAddCategoryDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AddCategoryDialog(
+        colors: [color0, color1, color2, color3, color4],
+        onCategoryCreated: () {
+          fetchCategories(); // Refresh categories list
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,29 +103,29 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 children: [
                   // Top Bar: username + search
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: color0,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color0,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
                           'serine',
                           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            showSearchOverlay = true;
-                          });
-                        },
-                        icon: const Icon(Icons.search, color: Colors.white),
-                      ),
-                    ],
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              showSearchOverlay = true;
+                            });
+                          },
+                          icon: const Icon(Icons.search, color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // Write Post Section
@@ -197,20 +212,34 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: categories.isEmpty
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: categories
-                                  .map(
-                                    (cat) => Chip(
-                                      backgroundColor: color4,
-                                      label: Text(
-                                        cat['name'],
-                                        style: const TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: categories
+                                      .map(
+                                        (cat) => Chip(
+                                          backgroundColor: color4,
+                                          label: Text(
+                                            cat['name'],
+                                            style: const TextStyle(color: Colors.white),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: () => _showAddCategoryDialog(),
+                                  icon: const Icon(Icons.add, color: Colors.white),
+                                  label: const Text('Add Category', style: TextStyle(color: Colors.white)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: color0,
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
                   ),
@@ -314,6 +343,87 @@ class _CreatePostModalState extends State<CreatePostModal> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ----------------------
+// ADD CATEGORY DIALOG
+// ----------------------
+class AddCategoryDialog extends StatefulWidget {
+  final List<Color> colors;
+  final VoidCallback onCategoryCreated;
+  const AddCategoryDialog({Key? key, required this.colors, required this.onCategoryCreated}) : super(key: key);
+
+  @override
+  State<AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<AddCategoryDialog> {
+  final _nameController = TextEditingController();
+  bool isSubmitting = false;
+
+  void submitCategory() async {
+    if (_nameController.text.isEmpty) return;
+
+    setState(() => isSubmitting = true);
+
+    try {
+      await ApiService.createCategory(
+        name: _nameController.text,
+      );
+
+      widget.onCategoryCreated();
+      Navigator.pop(context);
+    } catch (e) {
+      debugPrint('Error creating category: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create category: $e')),
+      );
+    } finally {
+      setState(() => isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: widget.colors[2],
+      title: const Text('Add New Category', style: TextStyle(color: Colors.white)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Category Name',
+              hintStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: widget.colors[3],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+        ),
+        ElevatedButton(
+          onPressed: isSubmitting ? null : submitCategory,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.colors[0],
+          ),
+          child: isSubmitting
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text('Add', style: TextStyle(color: Colors.white)),
+        ),
+      ],
     );
   }
 }
