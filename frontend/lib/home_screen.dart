@@ -1,6 +1,9 @@
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'api_service.dart'; // Make sure this is the correct path
+import 'auth_provider.dart';
+import 'profile_modal.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -112,9 +115,19 @@ class _HomePageState extends State<HomePage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'serine',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        GestureDetector(
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const ProfileModal(),
+                            );
+                          },
+                          child: Text(
+                            context.watch<AuthProvider>().user?.username ?? 'User',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
                         ),
                         IconButton(
                           onPressed: () {
@@ -274,8 +287,13 @@ class _CreatePostModalState extends State<CreatePostModal> {
     setState(() => isSubmitting = true);
 
     try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
       await ApiService.createPost(
-        userId: 1,       // default user
+        userId: user.id,
         categoryId: 1,   // default category
         title: _titleController.text,
         content: _contentController.text,
@@ -285,6 +303,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
       Navigator.pop(context, true);
     } catch (e) {
       debugPrint('Error creating post: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create post: $e')),
+      );
     } finally {
       setState(() => isSubmitting = false);
     }
