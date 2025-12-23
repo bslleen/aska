@@ -25,7 +25,7 @@ class _ProfileModalState extends State<ProfileModal> {
   String? _error;
 
   // Color palette
-  final Color color0 = const Color(0xFFC080D); // orange/pink
+  final Color color0 = const Color(0xFFC080DD); // orange/pink
   final Color color1 = Colors.black; // black background
   final Color color2 = const Color(0xFF38263F); // dark purple
   final Color color3 = const Color(0xFF52425C); // medium purple
@@ -68,6 +68,10 @@ class _ProfileModalState extends State<ProfileModal> {
     });
 
     final authProvider = context.read<AuthProvider>();
+    final user = authProvider.user;
+    
+    print('ProfileModal - _updateProfile: user = ${user?.username}, id = ${user?.id}');
+    print('ProfileModal - Auth token: ${user?.authToken?.substring(0, 20)}...');
 
     bool success = await authProvider.updateUser(
       username: _usernameController.text,
@@ -95,6 +99,7 @@ class _ProfileModalState extends State<ProfileModal> {
           ),
         );
       } else {
+        print('ProfileModal - Update failed: ${authProvider.error}');
         setState(() {
           _isLoading = false;
           _error = authProvider.error;

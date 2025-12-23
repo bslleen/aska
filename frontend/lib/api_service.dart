@@ -119,6 +119,38 @@ static Future<Map<String, dynamic>> createCategory({
       throw Exception('Failed to create category');
     }
   }
+
+  // ------------------------------
+  // DELETE CATEGORY
+  // ------------------------------
+  static Future<Map<String, dynamic>> deleteCategory({
+    required int categoryId,
+    required String authToken,
+  }) async {
+    print('API Service - deleteCategory called');
+    print('Category ID: $categoryId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete_category.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'category_id': categoryId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to delete category: ${response.body}');
+    }
+  }
   // ------------------------------
   // VOTE ON POST OR ANSWER
   // ------------------------------
@@ -233,6 +265,7 @@ static Future<Map<String, dynamic>> createCategory({
   // UPDATE USER PROFILE
   // ------------------------------
   static Future<Map<String, dynamic>> updateUser({
+    required String authToken,
     String? username,
     String? email,
     String? fullName,
@@ -240,9 +273,15 @@ static Future<Map<String, dynamic>> createCategory({
     String? currentPassword,
     String? newPassword,
   }) async {
+    print('API Service - updateUser called');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
     final response = await http.post(
       Uri.parse('$baseUrl/update_user.php'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
       body: jsonEncode({
         'username': username,
         'email': email,
@@ -253,10 +292,13 @@ static Future<Map<String, dynamic>> createCategory({
       }),
     );
 
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
-      throw Exception('Failed to update user');
+      throw Exception('Failed to update user: ${response.body}');
     }
   }
 }

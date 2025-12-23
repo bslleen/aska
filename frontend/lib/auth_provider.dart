@@ -69,12 +69,19 @@ class AuthProvider extends ChangeNotifier {
       final userJson = prefs.getString('user_data');
       final authToken = prefs.getString('auth_token');
       
+      print('Loading persisted user - User JSON: ${userJson != null}');
+      print('Loading persisted user - Auth Token: ${authToken != null}');
+      
       if (userJson != null && authToken != null) {
         final userMap = json.decode(userJson) as Map<String, dynamic>;
         _user = User.fromJson({...userMap, 'auth_token': authToken});
+        print('Loaded user: ${_user?.username}, Token: ${_user?.authToken?.substring(0, 20)}...');
         notifyListeners();
+      } else {
+        print('No persisted session found');
       }
     } catch (e) {
+      print('Error loading persisted user: $e');
       // Silently fail if no persisted session
       clearUser();
     }

@@ -1,0 +1,3 @@
+- [x] Fix null safety in _deleteSingleCategory method: Add check for user.authToken before calling ApiService.deleteCategory
+- [x] Fix null safety in _deleteSelectedCategories method: Add check for user.authToken before calling ApiService.deleteCategory
+- [x] Test the fixes to ensure no more type errors and proper error handling

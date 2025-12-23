@@ -14,7 +14,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   bool _isLoading = false;
 
   // Color palette
-  final Color color0 = const Color(0xFFC080D); // orange/pink
+  final Color color0 = const Color(0xFFC080DD); // orange/pink
   final Color color1 = Colors.black; // black background
   final Color color2 = const Color(0xFF38263F); // dark purple
   final Color color3 = const Color(0xFF52425C); // medium purple

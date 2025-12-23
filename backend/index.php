@@ -29,6 +29,7 @@ echo json_encode([
         'vote' => '/vote.php',
         'get_categories' => '/get_categories.php',
         'create_category' => '/create_category.php',
+        'delete_category' => '/delete_category.php',
     ]
 ]);
 ?>

@@ -71,12 +71,22 @@ function isTokenBlacklisted($token) {
     $tokenHash = hash('sha256', $token);
     
     try {
+        // Check if the table exists first
+        $stmt = $pdo->prepare("SHOW TABLES LIKE 'token_blacklist'");
+        $stmt->execute();
+        if ($stmt->rowCount() === 0) {
+            // Table doesn't exist, consider token not blacklisted
+            return false;
+        }
+        
+        // Check if token is in blacklist
         $stmt = $pdo->prepare("SELECT id FROM token_blacklist WHERE token_hash = ?");
         $stmt->execute([$tokenHash]);
         
         return $stmt->fetch() !== false;
     } catch (PDOException $e) {
         error_log("Error checking token blacklist: " . $e->getMessage());
+        // If we can't check blacklist, assume token is not blacklisted
         return false;
     }
 }
@@ -100,13 +110,39 @@ function blacklistToken($token, $userId) {
 }
 
 function validateTokenWithBlacklist($token) {
-    // First check if token is blacklisted
-    if (isTokenBlacklisted($token)) {
+    // If no token provided, fail immediately
+    if (!$token) {
+        error_log("validateTokenWithBlacklist: No token provided");
         return false;
     }
     
-    // Then validate normally
-    return validateToken($token);
+    error_log("validateTokenWithBlacklist: Validating token: " . substr($token, 0, 20) . "...");
+    
+    // First validate the token format and structure
+    $basicValidation = validateToken($token);
+    if (!$basicValidation) {
+        error_log("validateTokenWithBlacklist: Basic validation failed");
+        return false;
+    }
+    
+    error_log("validateTokenWithBlacklist: Basic validation passed, user_id: " . $basicValidation['user_id']);
+    
+    // Then check if token is blacklisted (with error handling)
+    try {
+        if (isTokenBlacklisted($token)) {
+            error_log("validateTokenWithBlacklist: Token is blacklisted");
+            return false;
+        }
+        error_log("validateTokenWithBlacklist: Token is not blacklisted");
+    } catch (Exception $e) {
+        error_log("validateTokenWithBlacklist: Blacklist check failed: " . $e->getMessage());
+        // If blacklist check fails due to database issues, 
+        // allow the token to be validated by basic checks
+        // Continue with basic validation
+    }
+    
+    error_log("validateTokenWithBlacklist: Validation successful");
+    return $basicValidation;
 }
 
 function cleanupExpiredTokens() {

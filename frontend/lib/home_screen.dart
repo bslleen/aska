@@ -17,9 +17,10 @@ class _HomePageState extends State<HomePage> {
   List<dynamic> categories = [];
   bool isLoading = true;
   bool showSearchOverlay = false;
+  Set<int> selectedCategories = {};
 
   // Color palette
-  final Color color0 = const Color(0xFFC080D);
+  final Color color0 = const Color(0xFFC080DD);
   final Color color1 = Colors.black; // fully black background
   final Color color2 = const Color(0xFF38263F);
   final Color color3 = const Color(0xFF52425C);
@@ -94,6 +95,191 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // --------------------------
+  // Show Delete Category Dialog
+  // --------------------------
+  void _showDeleteCategoryDialog(dynamic category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: color2,
+        title: Text(
+          'Delete Category',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${category['name']?.toString() ?? "Unknown"}"? This action cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteSingleCategory(category['id']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --------------------------
+  // Delete Single Category
+  // --------------------------
+  Future<void> _deleteSingleCategory(int categoryId) async {
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      print('HomeScreen - _deleteSingleCategory: user = ${user?.username}, id = ${user?.id}');
+      
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+      
+      final authToken = user.authToken;
+      print('HomeScreen - Auth token: ${authToken?.substring(0, 20)}...');
+      
+      if (authToken == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication required. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final response = await ApiService.deleteCategory(
+        categoryId: categoryId,
+        authToken: authToken!,
+      );
+
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Category deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        fetchCategories(); // Refresh categories list
+      } else {
+        throw Exception(response['error'] ?? 'Failed to delete category');
+      }
+    } catch (e) {
+      debugPrint('Error deleting category: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete category: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // --------------------------
+  // Delete Selected Categories
+  // --------------------------
+  Future<void> _deleteSelectedCategories() async {
+    if (selectedCategories.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: color2,
+        title: const Text(
+          'Delete Categories',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete ${selectedCategories.length} selected category(s)? This action cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete All', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final user = Provider.of<AuthProvider>(context, listen: false).user;
+        if (user == null) {
+          throw Exception('User not authenticated');
+        }
+
+        int successCount = 0;
+        int failCount = 0;
+
+        final authToken = user.authToken;
+        if (authToken == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentication required. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        for (int categoryId in selectedCategories) {
+          try {
+            final response = await ApiService.deleteCategory(
+              categoryId: categoryId,
+              authToken: authToken!,
+            );
+
+            if (response['success'] == true) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch (e) {
+            failCount++;
+            debugPrint('Error deleting category $categoryId: $e');
+          }
+        }
+
+        setState(() {
+          selectedCategories.clear();
+        });
+
+        fetchCategories(); // Refresh categories list
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted $successCount category(s)${failCount > 0 ? ', $failCount failed' : ''}'),
+            backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
+          ),
+        );
+      } catch (e) {
+        debugPrint('Error deleting categories: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete categories: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,7 +295,7 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: color0,
+                      color: color1,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -168,6 +354,7 @@ class _HomePageState extends State<HomePage> {
                               itemCount: posts.length,
                               itemBuilder: (context, index) {
                                 final post = posts[index];
+                                final category = post['category'] as String?;
                                 return Container(
                                   margin: const EdgeInsets.symmetric(vertical: 8),
                                   padding: const EdgeInsets.all(12),
@@ -192,7 +379,7 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Category: ${post['category'] ?? "Unknown"}',
+                                        'Category: ${category ?? "Unknown"}',
                                         style: const TextStyle(
                                             color: Colors.white54, fontSize: 12),
                                       ),
@@ -233,24 +420,57 @@ class _HomePageState extends State<HomePage> {
                                   runSpacing: 12,
                                   children: categories
                                       .map(
-                                        (cat) => Chip(
-                                          backgroundColor: color4,
+                                        (cat) => FilterChip(
+                                          backgroundColor: selectedCategories.contains(cat['id']) 
+                                              ? color0 
+                                              : color4,
+                                          selected: selectedCategories.contains(cat['id']),
                                           label: Text(
-                                            cat['name'],
+                                            cat['name']?.toString() ?? 'Unknown',
                                             style: const TextStyle(color: Colors.white),
                                           ),
+                                          onSelected: (bool selected) {
+                                            setState(() {
+                                              if (selected) {
+                                                selectedCategories.add(cat['id']);
+                                              } else {
+                                                selectedCategories.remove(cat['id']);
+                                              }
+                                            });
+                                          },
+                                          deleteIcon: const Icon(Icons.close, color: Colors.white, size: 16),
+                                          onDeleted: () => _showDeleteCategoryDialog(cat),
+                                          selectedColor: color0,
+                                          checkmarkColor: Colors.white,
                                         ),
                                       )
                                       .toList(),
                                 ),
                                 const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: () => _showAddCategoryDialog(),
-                                  icon: const Icon(Icons.add, color: Colors.white),
-                                  label: const Text('Add Category', style: TextStyle(color: Colors.white)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: color0,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () => _showAddCategoryDialog(),
+                                      icon: const Icon(Icons.add, color: Colors.white),
+                                      label: const Text('Add Category', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: color0,
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: selectedCategories.isNotEmpty 
+                                          ? _deleteSelectedCategories 
+                                          : null,
+                                      icon: const Icon(Icons.delete, color: Colors.white),
+                                      label: const Text('Delete Selected', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: selectedCategories.isNotEmpty 
+                                            ? Colors.red 
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -355,7 +575,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
             ElevatedButton(
               onPressed: isSubmitting ? null : submitPost,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC080D),
+                backgroundColor: const Color(0xFFC080DD),
               ),
               child: isSubmitting
                   ? const CircularProgressIndicator(color: Colors.white)
