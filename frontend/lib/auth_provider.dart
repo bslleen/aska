@@ -130,7 +130,11 @@ class AuthProvider extends ChangeNotifier {
       final data = json.decode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
-        _user = User.fromJson(data['user']);
+        // Extract auth_token from response and add it to user data
+        final authToken = data['auth_token'] as String?;
+        final userMap = Map<String, dynamic>.from(data['user'] as Map);
+        final userData = {...userMap, 'auth_token': authToken};
+        _user = User.fromJson(userData);
         await _persistUser();
         notifyListeners();
         setLoading(false);
@@ -172,7 +176,11 @@ class AuthProvider extends ChangeNotifier {
       final data = json.decode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
-        _user = User.fromJson(data['user']);
+        // Extract auth_token from response and add it to user data
+        final authToken = data['auth_token'] as String?;
+        final userMap = Map<String, dynamic>.from(data['user'] as Map);
+        final userData = {...userMap, 'auth_token': authToken};
+        _user = User.fromJson(userData);
         await _persistUser();
         notifyListeners();
         setLoading(false);
