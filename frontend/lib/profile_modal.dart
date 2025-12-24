@@ -319,6 +319,66 @@ class _ProfileModalState extends State<ProfileModal> {
                           prefixIcon: Icon(Icons.info_outline, color: _isEditing ? color0 : Colors.white70),
                         ),
                       ),
+                      const SizedBox(height: 16),
+
+                      // User Role Display (read-only)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: color3,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: color4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              user?.userType == 'teacher' ? Icons.school : Icons.person,
+                              color: user?.userType == 'teacher' ? Colors.amber : color0,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'User Role',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  user?.userType == 'teacher' ? 'Teacher' : 'Student',
+                                  style: TextStyle(
+                                    color: user?.userType == 'teacher' ? Colors.amber : color0,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                            if (user?.userType == 'teacher')
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                                ),
+                                child: Text(
+                                  'Educator',
+                                  style: TextStyle(
+                                    color: Colors.amber,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 24),
 
                       // Password Change Section

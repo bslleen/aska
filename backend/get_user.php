@@ -32,7 +32,7 @@ $userId = $payload['user_id'];
 
 try {
     // Get current user data
-    $stmt = $pdo->prepare("SELECT id, username, email, full_name, bio, created_at FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, username, email, full_name, bio, user_type, created_at FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     

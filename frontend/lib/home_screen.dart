@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'api_service.dart'; // Make sure this is the correct path
 import 'auth_provider.dart';
 import 'profile_modal.dart';
+import 'admin_dashboard.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -291,7 +292,7 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // Top Bar: username + search
+                  // Top Bar: username + admin dashboard + search
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -310,18 +311,43 @@ class _HomePageState extends State<HomePage> {
                               builder: (_) => const ProfileModal(),
                             );
                           },
-                          child: Text(
-                            context.watch<AuthProvider>().user?.username ?? 'User',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          child: Row(
+                            children: [
+                              Text(
+                                context.watch<AuthProvider>().user?.username ?? 'User',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                              if (context.watch<AuthProvider>().isAdmin) ...[
+                                const SizedBox(width: 8),
+                                const Text('👑', style: TextStyle(fontSize: 16)),
+                              ],
+                            ],
                           ),
                         ),
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              showSearchOverlay = true;
-                            });
-                          },
-                          icon: const Icon(Icons.search, color: Colors.white),
+                        Row(
+                          children: [
+                            if (context.watch<AuthProvider>().isAdmin)
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AdminDashboard(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.admin_panel_settings, color: Colors.amber),
+                                tooltip: 'Admin Dashboard',
+                              ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  showSearchOverlay = true;
+                                });
+                              },
+                              icon: const Icon(Icons.search, color: Colors.white),
+                            ),
+                          ],
                         ),
                       ],
                     ),

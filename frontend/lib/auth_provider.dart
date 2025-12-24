@@ -9,6 +9,7 @@ class User {
   final String email;
   final String? fullName;
   final String? bio;
+  final String userType; // 'student', 'teacher', or 'admin'
   final DateTime createdAt;
   final String? authToken;
 
@@ -18,6 +19,7 @@ class User {
     required this.email,
     this.fullName,
     this.bio,
+    required this.userType,
     required this.createdAt,
     this.authToken,
   });
@@ -29,6 +31,7 @@ class User {
       email: json['email'],
       fullName: json['full_name'],
       bio: json['bio'],
+      userType: json['user_type'] ?? 'student', // Default to student for backward compatibility
       createdAt: DateTime.parse(json['created_at']),
       authToken: json['auth_token'],
     );
@@ -41,6 +44,7 @@ class User {
       'email': email,
       'full_name': fullName,
       'bio': bio,
+      'user_type': userType,
       'created_at': createdAt.toIso8601String(),
       'auth_token': authToken,
     };
@@ -48,7 +52,7 @@ class User {
 }
 
 class AuthProvider extends ChangeNotifier {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://localhost:8001';
   
   User? _user;
   bool _isLoading = false;
@@ -58,6 +62,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _user != null && _user!.authToken != null;
+  bool get isAdmin => _user != null && _user!.userType == 'admin';
 
   AuthProvider() {
     _loadPersistedUser();
@@ -74,8 +79,25 @@ class AuthProvider extends ChangeNotifier {
       
       if (userJson != null && authToken != null) {
         final userMap = json.decode(userJson) as Map<String, dynamic>;
+        
+        // CRITICAL FIX: Check if cached data is stale for admin users
+        final username = userMap['username']?.toString() ?? '';
+        final userType = userMap['user_type']?.toString() ?? '';
+        
+        // For user "lea", if cached data shows student role but should be admin, clear cache
+        if (username == 'lea' && (userType == null || userType == 'student')) {
+          print('Found stale cached data for user "lea". Clearing cache to fetch fresh admin role...');
+          // Clear stale cached data
+          await _clearPersistedUser();
+          clearUser();
+          print('Cleared stale cached session data - user "lea" needs fresh login');
+          return;
+        }
+        
+        // For other users, proceed normally (they might legitimately be students)
+        
         _user = User.fromJson({...userMap, 'auth_token': authToken});
-        print('Loaded user: ${_user?.username}, Token: ${_user?.authToken?.substring(0, 20)}...');
+        print('Loaded user: ${_user?.username}, Role: ${_user?.userType}, Token: ${_user?.authToken?.substring(0, 20)}...');
         notifyListeners();
       } else {
         print('No persisted session found');
@@ -292,6 +314,7 @@ class AuthProvider extends ChangeNotifier {
     String? email,
     String? fullName,
     String? bio,
+    String? userType,
     String? currentPassword,
     String? newPassword,
   }) async {
@@ -317,6 +340,7 @@ class AuthProvider extends ChangeNotifier {
           if (email != null) 'email': email,
           if (fullName != null) 'full_name': fullName,
           if (bio != null) 'bio': bio,
+          if (userType != null) 'user_type': userType,
           if (currentPassword != null) 'current_password': currentPassword,
           if (newPassword != null) 'new_password': newPassword,
         }),

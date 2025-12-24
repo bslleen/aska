@@ -62,14 +62,14 @@ try {
     // Hash the password
     $password_hash = password_hash($password, PASSWORD_DEFAULT);
     
-    // Insert new user
-    $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, full_name, bio) VALUES (?, ?, ?, ?, ?)");
+    // Insert new user (default to student role)
+    $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, full_name, bio, user_type) VALUES (?, ?, ?, ?, ?, 'student')");
     $stmt->execute([$username, $email, $password_hash, $full_name, $bio]);
     
     $user_id = $pdo->lastInsertId();
     
     // Get the created user (without password)
-    $stmt = $pdo->prepare("SELECT id, username, email, full_name, bio, created_at FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, username, email, full_name, bio, user_type, created_at FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch();
     

@@ -42,11 +42,12 @@ $username = isset($input['username']) ? trim($input['username']) : null;
 $email = isset($input['email']) ? trim($input['email']) : null;
 $full_name = isset($input['full_name']) ? trim($input['full_name']) : null;
 $bio = isset($input['bio']) ? trim($input['bio']) : null;
+$user_type = isset($input['user_type']) ? trim($input['user_type']) : null;
 $current_password = isset($input['current_password']) ? $input['current_password'] : null;
 $new_password = isset($input['new_password']) ? $input['new_password'] : null;
 
 // Validate input
-if (empty($username) && empty($email) && empty($full_name) && empty($bio) && empty($new_password)) {
+if (empty($username) && empty($email) && empty($full_name) && empty($bio) && empty($user_type) && empty($new_password)) {
     echo json_encode(['error' => 'No fields to update']);
     exit;
 }
@@ -100,6 +101,16 @@ try {
         $params[] = $bio;
     }
     
+    // Update user_type if provided
+    if (!empty($user_type)) {
+        if (!in_array($user_type, ['student', 'teacher'])) {
+            echo json_encode(['error' => 'Invalid user_type. Must be "student" or "teacher"']);
+            exit;
+        }
+        $updates[] = "user_type = ?";
+        $params[] = $user_type;
+    }
+    
     // Update password if provided
     if (!empty($new_password)) {
         // Verify current password
@@ -141,7 +152,7 @@ try {
     $stmt->execute($params);
     
     // Get updated user data
-    $stmt = $pdo->prepare("SELECT id, username, email, full_name, bio, created_at FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, username, email, full_name, bio, user_type, created_at FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     

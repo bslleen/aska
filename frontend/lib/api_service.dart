@@ -5,7 +5,7 @@ class ApiService {
   // ------------------------------
   // Base URL
   // ------------------------------
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://localhost:8001';
 
   // ------------------------------
   // GET ALL POSTS
@@ -299,6 +299,131 @@ static Future<Map<String, dynamic>> createCategory({
       return json.decode(response.body);
     } else {
       throw Exception('Failed to update user: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // ADMIN: GET ALL USERS (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> getAllUsers({
+    required String authToken,
+  }) async {
+    print('API Service - getAllUsers called (Admin)');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_all_users.php'),
+      headers: {
+        'Authorization': 'Bearer $authToken',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get all users: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // ADMIN: DELETE USER (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> deleteUser({
+    required String authToken,
+    required int userId,
+  }) async {
+    print('API Service - deleteUser called (Admin)');
+    print('User ID: $userId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete_user.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'user_id': userId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to delete user: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // ADMIN: DELETE POST (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> deletePost({
+    required String authToken,
+    required int postId,
+  }) async {
+    print('API Service - deletePost called (Admin)');
+    print('Post ID: $postId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete_post.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'post_id': postId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to delete post: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // ADMIN: ASSIGN ROLE (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> assignUserRole({
+    required String authToken,
+    required int userId,
+    required String userType, // 'student', 'teacher', 'admin'
+  }) async {
+    print('API Service - assignUserRole called (Admin)');
+    print('User ID: $userId');
+    print('User Type: $userType');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/assign_teacher_role.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'user_id': userId,
+        'user_type': userType,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to assign user role: ${response.body}');
     }
   }
 }

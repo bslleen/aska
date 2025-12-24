@@ -50,10 +50,10 @@ if (empty($password)) {
 try {
     // Find user by username or email
     if (!empty($username)) {
-        $stmt = $pdo->prepare("SELECT id, username, email, password_hash, full_name, bio, created_at FROM users WHERE username = ?");
+        $stmt = $pdo->prepare("SELECT id, username, email, password_hash, full_name, bio, user_type, created_at FROM users WHERE username = ?");
         $stmt->execute([$username]);
     } else {
-        $stmt = $pdo->prepare("SELECT id, username, email, password_hash, full_name, bio, created_at FROM users WHERE email = ?");
+        $stmt = $pdo->prepare("SELECT id, username, email, password_hash, full_name, bio, user_type, created_at FROM users WHERE email = ?");
         $stmt->execute([$email]);
     }
     
