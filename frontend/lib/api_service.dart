@@ -20,12 +20,15 @@ class ApiService {
   }
 
   // ------------------------------
-  // GET ANSWERS FOR A POST
+  // GET ANSWERS FOR A POST (with privacy filtering)
   // ------------------------------
-  static Future<List<dynamic>> getAnswers(int postId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/get_answers.php?post_id=$postId'),
-    );
+  static Future<List<dynamic>> getAnswers(int postId, {int? currentUserId}) async {
+    String url = '$baseUrl/get_answers.php?post_id=$postId';
+    if (currentUserId != null) {
+      url += '&current_user_id=$currentUserId';
+    }
+    
+    final response = await http.get(Uri.parse(url));
     if (response.statusCode == 200) {
       return json.decode(response.body);
     } else {
@@ -61,12 +64,14 @@ class ApiService {
   }
 
   // ------------------------------
-  // CREATE NEW ANSWER
+  // CREATE NEW ANSWER (with privacy controls)
   // ------------------------------
   static Future<Map<String, dynamic>> createAnswer({
     required int userId,
     required int postId,
     required String content,
+    String visibility = 'public',
+    int? targetStudentId,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/create_answer.php'),
@@ -75,6 +80,8 @@ class ApiService {
         'user_id': userId,
         'post_id': postId,
         'content': content,
+        'visibility': visibility,
+        'target_student_id': targetStudentId,
       }),
     );
 
@@ -424,6 +431,87 @@ static Future<Map<String, dynamic>> createCategory({
       return json.decode(response.body);
     } else {
       throw Exception('Failed to assign user role: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // GET CATEGORIES WITH TEACHERS (QA System)
+  // ------------------------------
+  static Future<List<dynamic>> getCategoriesWithTeachers() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_categories_with_teachers.php'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load categories with teachers');
+    }
+  }
+
+  // ------------------------------
+  // GET STUDENT QA HISTORY (QA System)
+  // ------------------------------
+  static Future<Map<String, dynamic>> getStudentQAHistory({
+    required int studentId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_student_qa_history.php?student_id=$studentId'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load student QA history');
+    }
+  }
+
+  // ------------------------------
+  // GET TEACHER QUESTIONS (QA System)
+  // ------------------------------
+  static Future<Map<String, dynamic>> getTeacherQuestions({
+    required int teacherId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_teacher_questions.php?teacher_id=$teacherId'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load teacher questions');
+    }
+  }
+
+  // ------------------------------
+  // ASSIGN TEACHER TO CATEGORY (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> assignTeacherCategory({
+    required String authToken,
+    required int categoryId,
+    required int teacherId,
+  }) async {
+    print('API Service - assignTeacherCategory called (Admin)');
+    print('Category ID: $categoryId');
+    print('Teacher ID: $teacherId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/assign_teacher_category.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'category_id': categoryId,
+        'teacher_id': teacherId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to assign teacher to category: ${response.body}');
     }
   }
 }

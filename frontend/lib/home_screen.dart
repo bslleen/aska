@@ -5,6 +5,8 @@ import 'api_service.dart'; // Make sure this is the correct path
 import 'auth_provider.dart';
 import 'profile_modal.dart';
 import 'admin_dashboard.dart';
+import 'qa/student_qa_screen.dart';
+import 'qa/teacher_qa_dashboard.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -73,7 +75,7 @@ class _HomePageState extends State<HomePage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CreatePostModal(onPostCreated: fetchPosts),
+      builder: (_) => CreatePostModal(onPostCreated: fetchPosts, categories: categories),
     );
 
     if (result == true) {
@@ -326,6 +328,35 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Row(
                           children: [
+                            // Q&A Navigation Buttons
+                            if (context.watch<AuthProvider>().user?.userType == 'teacher') ...[
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const TeacherQADashboard(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.school, color: Colors.green),
+                                tooltip: 'Teacher Q&A Dashboard',
+                              ),
+                            ],
+                            if (context.watch<AuthProvider>().user?.userType == 'student') ...[
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const StudentQAScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.question_answer, color: Colors.blue),
+                                tooltip: 'My Questions & Answers',
+                              ),
+                            ],
                             if (context.watch<AuthProvider>().isAdmin)
                               IconButton(
                                 onPressed: () {
@@ -516,7 +547,8 @@ class _HomePageState extends State<HomePage> {
 // ----------------------
 class CreatePostModal extends StatefulWidget {
   final VoidCallback onPostCreated;
-  const CreatePostModal({Key? key, required this.onPostCreated}) : super(key: key);
+  final List<dynamic> categories;
+  const CreatePostModal({Key? key, required this.onPostCreated, required this.categories}) : super(key: key);
 
   @override
   State<CreatePostModal> createState() => _CreatePostModalState();
@@ -525,10 +557,24 @@ class CreatePostModal extends StatefulWidget {
 class _CreatePostModalState extends State<CreatePostModal> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  dynamic selectedCategory;
   bool isSubmitting = false;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.categories.isNotEmpty) {
+      selectedCategory = widget.categories.first;
+    }
+  }
+
   void submitPost() async {
-    if (_titleController.text.isEmpty || _contentController.text.isEmpty) return;
+    if (_titleController.text.isEmpty || _contentController.text.isEmpty || selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
 
     setState(() => isSubmitting = true);
 
@@ -540,7 +586,7 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
       await ApiService.createPost(
         userId: user.id,
-        categoryId: 1,   // default category
+        categoryId: selectedCategory['id'],
         title: _titleController.text,
         content: _contentController.text,
       );
