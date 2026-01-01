@@ -514,4 +514,64 @@ static Future<Map<String, dynamic>> createCategory({
       throw Exception('Failed to assign teacher to category: ${response.body}');
     }
   }
+
+  // ------------------------------
+  // GET CATEGORY-TEACHER ASSIGNMENTS (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> getCategoryTeacherAssignments({
+    required String authToken,
+  }) async {
+    print('API Service - getCategoryTeacherAssignments called (Admin)');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_category_teacher_assignments.php'),
+      headers: {
+        'Authorization': 'Bearer $authToken',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get category-teacher assignments: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // REMOVE TEACHER FROM CATEGORY (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> removeTeacherFromCategory({
+    required String authToken,
+    required int assignmentId,
+  }) async {
+    print('API Service - removeTeacherFromCategory called (Admin)');
+    print('Assignment ID: $assignmentId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    // First, we need to create this endpoint or use a generic delete approach
+    // For now, we'll use the existing delete endpoint structure if available
+    final response = await http.post(
+      Uri.parse('$baseUrl/remove_teacher_category.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'assignment_id': assignmentId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to remove teacher from category: ${response.body}');
+    }
+  }
 }

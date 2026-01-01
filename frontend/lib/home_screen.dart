@@ -1,7 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'api_service.dart'; // Make sure this is the correct path
+import 'api_service.dart';
 import 'auth_provider.dart';
 import 'profile_modal.dart';
 import 'admin_dashboard.dart';
@@ -22,12 +21,19 @@ class _HomePageState extends State<HomePage> {
   bool showSearchOverlay = false;
   Set<int> selectedCategories = {};
 
+  // Reply system state
+  int? expandedPostId;
+  Map<int, List<dynamic>> postReplies = {};
+  Map<int, bool> repliesLoading = {};
+  Map<int, TextEditingController> replyControllers = {};
+  Map<int, bool> replying = {};
+
   // Color palette
-  final Color color0 = const Color(0xFFC080DD);
-  final Color color1 = Colors.black; // fully black background
-  final Color color2 = const Color(0xFF38263F);
-  final Color color3 = const Color(0xFF52425C);
-  final Color color4 = const Color(0xFF7A6284);
+  static const Color color0 = Color(0xFFC080DD);
+  static const Color color1 = Colors.black;
+  static const Color color2 = Color(0xFF38263F);
+  static const Color color3 = Color(0xFF52425C);
+  static const Color color4 = Color(0xFF7A6284);
 
   @override
   void initState() {
@@ -36,13 +42,20 @@ class _HomePageState extends State<HomePage> {
     fetchCategories();
   }
 
+  @override
+  void dispose() {
+    // Dispose all reply controllers
+    replyControllers.values.forEach((controller) => controller.dispose());
+    super.dispose();
+  }
+
   // --------------------------
   // Fetch posts
   // --------------------------
   Future<void> fetchPosts() async {
     setState(() => isLoading = true);
     try {
-      final data = await ApiService.getPosts(); // call static method directly
+      final data = await ApiService.getPosts();
       setState(() {
         posts = data;
         isLoading = false;
@@ -58,12 +71,138 @@ class _HomePageState extends State<HomePage> {
   // --------------------------
   Future<void> fetchCategories() async {
     try {
-      final data = await ApiService.getCategories(); // call static method
+      final data = await ApiService.getCategories();
       setState(() {
         categories = data;
       });
     } catch (e) {
       debugPrint('Error fetching categories: $e');
+    }
+  }
+
+  // --------------------------
+  // Load replies for a post
+  // --------------------------
+  Future<void> _loadReplies(int postId) async {
+    setState(() {
+      repliesLoading[postId] = true;
+    });
+
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      final data = await ApiService.getAnswers(
+        postId,
+        currentUserId: user?.id,
+      );
+
+      setState(() {
+        postReplies[postId] = data;
+        repliesLoading[postId] = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading replies: $e');
+      setState(() {
+        repliesLoading[postId] = false;
+        postReplies[postId] = [];
+      });
+    }
+  }
+
+  // --------------------------
+  // Submit a reply
+  // --------------------------
+  Future<void> _submitReply(int postId, String content) async {
+    if (content.trim().isEmpty) return;
+
+    setState(() {
+      replying[postId] = true;
+    });
+
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await ApiService.createAnswer(
+        userId: user.id,
+        postId: postId,
+        content: content.trim(),
+      );
+
+      // Clear the input field
+      replyControllers[postId]?.clear();
+
+      // Reload replies to show the new one
+      await _loadReplies(postId);
+
+      // Update reply count in the post
+      setState(() {
+        for (var post in posts) {
+          if (post['post_id'] == postId) {
+            post['reply_count'] = (post['reply_count'] ?? 0) + 1;
+            break;
+          }
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reply posted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error submitting reply: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to post reply: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        replying[postId] = false;
+      });
+    }
+  }
+
+  // --------------------------
+  // Toggle post expansion
+  // --------------------------
+  void _togglePostExpansion(int postId) async {
+    if (expandedPostId == postId) {
+      // Collapse this post
+      setState(() {
+        expandedPostId = null;
+      });
+    } else {
+      // Expand this post and load replies
+      setState(() {
+        expandedPostId = postId;
+      });
+      await _loadReplies(postId);
+    }
+  }
+
+  // --------------------------
+  // Format timestamp
+  // --------------------------
+  String _formatTime(String? createdAt) {
+    if (createdAt == null) return '';
+    try {
+      final date = DateTime.parse(createdAt);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inMinutes < 1) return 'Just now';
+      if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+      if (difference.inHours < 24) return '${difference.inHours}h ago';
+      if (difference.inDays < 7) return '${difference.inDays}d ago';
+      
+      return '${date.month}/${date.day}/${date.year}';
+    } catch (e) {
+      return '';
     }
   }
 
@@ -92,7 +231,7 @@ class _HomePageState extends State<HomePage> {
       builder: (context) => AddCategoryDialog(
         colors: [color0, color1, color2, color3, color4],
         onCategoryCreated: () {
-          fetchCategories(); // Refresh categories list
+          fetchCategories();
         },
       ),
     );
@@ -171,7 +310,7 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: Colors.green,
           ),
         );
-        fetchCategories(); // Refresh categories list
+        fetchCategories();
       } else {
         throw Exception(response['error'] ?? 'Failed to delete category');
       }
@@ -263,7 +402,7 @@ class _HomePageState extends State<HomePage> {
           selectedCategories.clear();
         });
 
-        fetchCategories(); // Refresh categories list
+        fetchCategories();
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -281,6 +420,341 @@ class _HomePageState extends State<HomePage> {
         );
       }
     }
+  }
+
+  // --------------------------
+  // Build single post widget
+  // --------------------------
+  Widget _buildPostWidget(dynamic post) {
+    final postId = post['post_id'];
+    final isExpanded = expandedPostId == postId;
+    final replyCount = post['reply_count'] ?? 0;
+    final replies = postReplies[postId] ?? [];
+    final isLoadingReplies = repliesLoading[postId] ?? false;
+    final isReplying = replying[postId] ?? false;
+
+    // Initialize reply controller if not exists
+    if (!replyControllers.containsKey(postId)) {
+      replyControllers[postId] = TextEditingController();
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isExpanded ? color2 : color3,
+        borderRadius: BorderRadius.circular(16),
+        border: isExpanded ? Border.all(color: color0.withOpacity(0.5), width: 1) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Post header (always visible)
+          GestureDetector(
+            onTap: () => _togglePostExpansion(postId),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Author and time row
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: color0,
+                      child: Text(
+                        (post['author']?.toString() ?? 'U')[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post['author'] ?? 'Unknown',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            _formatTime(post['created_at']),
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: Colors.white54,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Title
+                Text(
+                  post['title'] ?? '',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Content
+                Text(
+                  post['content'] ?? '',
+                  style: const TextStyle(color: Colors.white70),
+                  maxLines: isExpanded ? null : 3,
+                  overflow: isExpanded ? null : TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                // Category and reply count
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: color4,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        post['category'] ?? 'Unknown',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () => _togglePostExpansion(postId),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.comment_outlined,
+                            size: 16,
+                            color: Colors.white54,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$replyCount ${replyCount == 1 ? 'reply' : 'replies'}',
+                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Expanded content (replies and reply input)
+          if (isExpanded) ...[
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: 8),
+
+            // Replies section header
+            Row(
+              children: [
+                Icon(Icons.comment, color: color0, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Replies',
+                  style: TextStyle(
+                    color: color0,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Loading indicator
+            if (isLoadingReplies)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: const CircularProgressIndicator(color: color0),
+                ),
+              )
+            // Replies list
+            else if (replies.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                alignment: Alignment.center,
+                child: Column(
+                  children: [
+                    Icon(Icons.chat_bubble_outline, color: Colors.white24, size: 40),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No replies yet',
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                    Text(
+                      'Be the first to reply!',
+                      style: TextStyle(color: Colors.white38, fontSize: 12),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: replies.map((reply) {
+                  return _buildReplyWidget(reply);
+                }).toList(),
+              ),
+
+            const SizedBox(height: 16),
+
+            // Reply input field
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color3,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: replyControllers[postId],
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: null,
+                      minLines: 1,
+                      decoration: InputDecoration(
+                        hintText: 'Write a reply...',
+                        hintStyle: TextStyle(color: Colors.white38),
+                        filled: true,
+                        fillColor: color2,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  isReplying
+                      ? const SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Padding(
+                            padding: EdgeInsets.all(8),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: color0),
+                          ),
+                        )
+                      : IconButton(
+                          onPressed: () {
+                            final content = replyControllers[postId]?.text;
+                            if (content != null && content.trim().isNotEmpty) {
+                              _submitReply(postId, content);
+                            }
+                          },
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: color0,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.send, color: Colors.white, size: 18),
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // --------------------------
+  // Build single reply widget
+  // --------------------------
+  Widget _buildReplyWidget(dynamic reply) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color2.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Reply header
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: color4,
+                child: Text(
+                  (reply['author']?.toString() ?? 'U')[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reply['author'] ?? 'Unknown',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      _formatTime(reply['created_at']),
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (reply['is_accepted'] == 1)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '✓ Accepted',
+                    style: TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Reply content
+          Text(
+            reply['content'] ?? '',
+            style: const TextStyle(color: Color(0xE6FFFFFF)), // white90 equivalent
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -404,47 +878,35 @@ class _HomePageState extends State<HomePage> {
                   // Posts feed
                   Expanded(
                     child: isLoading
-                        ? const Center(child: CircularProgressIndicator())
+                        ? const Center(child: CircularProgressIndicator(color: color0))
                         : RefreshIndicator(
                             onRefresh: fetchPosts,
-                            child: ListView.builder(
-                              itemCount: posts.length,
-                              itemBuilder: (context, index) {
-                                final post = posts[index];
-                                final category = post['category'] as String?;
-                                return Container(
-                                  margin: const EdgeInsets.symmetric(vertical: 8),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: color3,
-                                    borderRadius: BorderRadius.circular(16),
+                            color: color0,
+                            child: posts.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.post_add, color: Colors.white24, size: 60),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'No posts yet',
+                                          style: TextStyle(color: Colors.white54, fontSize: 18),
+                                        ),
+                                        const Text(
+                                          'Be the first to create a post!',
+                                          style: TextStyle(color: Colors.white38),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: posts.length,
+                                    itemBuilder: (context, index) {
+                                      final post = posts[index];
+                                      return _buildPostWidget(post);
+                                    },
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        post['title'],
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        post['content'],
-                                        style: const TextStyle(color: Colors.white70),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Category: ${category ?? "Unknown"}',
-                                        style: const TextStyle(
-                                            color: Colors.white54, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
                           ),
                   ),
                 ],
@@ -605,6 +1067,9 @@ class _CreatePostModalState extends State<CreatePostModal> {
 
   @override
   Widget build(BuildContext context) {
+    final Color color2 = const Color(0xFF38263F);
+    final Color color4 = const Color(0xFF7A6284);
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
@@ -740,3 +1205,4 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
     );
   }
 }
+
