@@ -23,17 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-// Get authorization header
-$authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-$token = null;
-
-if (preg_match('/Bearer\s+(\S+)/', $authHeader, $matches)) {
-    $token = $matches[1];
-}
-
-// Check admin access
-$adminPayload = checkAdminAccess($token);
-if (!$adminPayload) {
+// Verify admin access
+$adminPayload = verifyAdminAccess();
+if (isset($adminPayload['error'])) {
+    echo json_encode(['success' => false, 'error' => $adminPayload['error']]);
     exit;
 }
 
@@ -102,3 +95,4 @@ try {
     echo json_encode(['error' => 'Failed to retrieve users: '.$e->getMessage()]);
 }
 ?>
+

@@ -6,21 +6,34 @@ require_once 'token_utils.php';
 global $pdo;
 
 /**
- * Check if current user is admin
+ * Verify admin access and return user payload or error array
+ * 
+ * @return array|false Returns user payload on success, or error array on failure
  */
-function checkAdminAccess($token) {
+function verifyAdminAccess() {
     global $pdo;
     
     if (!$pdo) {
-        echo json_encode(['error' => 'Database connection failed']);
-        return false;
+        return ['error' => 'Database connection failed'];
+    }
+    
+    // Get Authorization header
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (empty($authHeader)) {
+        return ['error' => 'User not authenticated'];
+    }
+    
+    // Extract Bearer token
+    if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        $token = $matches[1];
+    } else {
+        return ['error' => 'Invalid authorization format'];
     }
     
     // Validate token
     $payload = validateTokenWithBlacklist($token);
     if (!$payload) {
-        echo json_encode(['error' => 'User not authenticated']);
-        return false;
+        return ['error' => 'User not authenticated'];
     }
     
     $userId = $payload['user_id'];
@@ -31,8 +44,7 @@ function checkAdminAccess($token) {
     $user = $stmt->fetch();
     
     if (!$user || $user['user_type'] !== 'admin') {
-        echo json_encode(['error' => 'Access denied. Admin privileges required.']);
-        return false;
+        return ['error' => 'Access denied. Admin privileges required.'];
     }
     
     return $payload;
@@ -40,11 +52,26 @@ function checkAdminAccess($token) {
 
 /**
  * Get admin user info
+ * 
+ * @return array|null Returns user array on success, null on failure
  */
-function getAdminUser($token) {
+function getAdminUser() {
     global $pdo;
     
     if (!$pdo) {
+        return null;
+    }
+    
+    // Get Authorization header
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if (empty($authHeader)) {
+        return null;
+    }
+    
+    // Extract Bearer token
+    if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        $token = $matches[1];
+    } else {
         return null;
     }
     
@@ -61,3 +88,4 @@ function getAdminUser($token) {
     return $user;
 }
 ?>
+

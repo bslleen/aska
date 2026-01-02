@@ -15,7 +15,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String? _error;
   List<dynamic> _users = [];
   List<dynamic> _posts = [];
-  int _selectedTab = 0;
+  List<dynamic> _reportedPosts = [];
+  List<dynamic> _reportedReplies = [];
+  int _selectedTab = 0; // 0: Users, 1: Posts, 2: Reported Content
+  int _reportSubTab = 0; // 0: Posts, 1: Replies
 
   @override
   void initState() {
@@ -68,6 +71,150 @@ class _AdminDashboardState extends State<AdminDashboard> {
     setState(() {
       _posts = response;
     });
+  }
+
+  // --------------------------
+  // Load reported posts
+  // --------------------------
+  Future<void> _loadReportedPosts() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final response = await ApiService.getReportedPosts(
+      authToken: authProvider.user!.authToken!,
+    );
+    
+    setState(() {
+      _reportedPosts = response['data'] ?? [];
+    });
+  }
+
+  // --------------------------
+  // Load reported replies
+  // --------------------------
+  Future<void> _loadReportedReplies() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final response = await ApiService.getReportedReplies(
+      authToken: authProvider.user!.authToken!,
+    );
+    
+    setState(() {
+      _reportedReplies = response['data'] ?? [];
+    });
+  }
+
+  // --------------------------
+  // Load all reported content
+  // --------------------------
+  Future<void> _loadReportedContent() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      await _loadReportedPosts();
+      await _loadReportedReplies();
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // --------------------------
+  // Dismiss a report
+  // --------------------------
+  Future<void> _dismissReport(int reportId, String reportType) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Dismiss Report'),
+        content: const Text('Are you sure you want to dismiss this report? The content will remain visible.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Dismiss'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final response = await ApiService.dismissReport(
+          authToken: authProvider.user!.authToken!,
+          reportId: reportId,
+          reportType: reportType,
+        );
+        
+        if (response['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Report dismissed successfully')),
+          );
+          await _loadReportedContent();
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to dismiss report: $e')),
+        );
+      }
+    }
+  }
+
+  // --------------------------
+  // Delete reported content
+  // --------------------------
+  Future<void> _deleteReportedContent(int targetId, String targetType, String contentTitle) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Reported Content'),
+        content: Text('Are you sure you want to delete this $targetType?\n\n"$contentTitle"\n\nThis action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final response = await ApiService.deleteReportedContent(
+          authToken: authProvider.user!.authToken!,
+          targetId: targetId,
+          targetType: targetType,
+        );
+        
+        if (response['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${targetType[0].toUpperCase()}${targetType.substring(1)} deleted successfully')),
+          );
+          await _loadReportedContent();
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete content: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _deleteUser(int userId) async {
@@ -221,7 +368,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Text('👥 Users (${_users.length})'),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
@@ -237,9 +384,64 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Text('📝 Posts (${_posts.length})'),
                   ),
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedTab = 2;
+                      });
+                      _loadReportedContent();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedTab == 2 ? Colors.deepPurple : Colors.grey[300],
+                      foregroundColor: _selectedTab == 2 ? Colors.white : Colors.black,
+                    ),
+                    child: Text('🚩 Reported (${_reportedPosts.length + _reportedReplies.length})'),
+                  ),
+                ),
               ],
             ),
           ),
+          
+          // Report sub-tab (only show when reported content tab is selected)
+          if (_selectedTab == 2)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _reportSubTab = 0;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _reportSubTab == 0 ? Colors.orange : Colors.grey[300],
+                        foregroundColor: _reportSubTab == 0 ? Colors.white : Colors.black,
+                      ),
+                      child: Text('📄 Posts (${_reportedPosts.length})'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _reportSubTab = 1;
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _reportSubTab == 1 ? Colors.orange : Colors.grey[300],
+                        foregroundColor: _reportSubTab == 1 ? Colors.white : Colors.black,
+                      ),
+                      child: Text('💬 Replies (${_reportedReplies.length})'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           
           // Content
           Expanded(
@@ -263,11 +465,187 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       )
                     : _selectedTab == 0
                         ? _buildUsersList()
-                        : _buildPostsList(),
+                        : _selectedTab == 1
+                            ? _buildPostsList()
+                            : _buildReportedContentList(),
           ),
         ],
       ),
     );
+  }
+
+  // --------------------------
+  // Build Reported Content List
+  // --------------------------
+  Widget _buildReportedContentList() {
+    if (_reportSubTab == 0) {
+      // Reported Posts
+      if (_reportedPosts.isEmpty) {
+        return const Center(child: Text('No reported posts'));
+      }
+      return ListView.builder(
+        itemCount: _reportedPosts.length,
+        itemBuilder: (context, index) {
+          final item = _reportedPosts[index];
+          final post = item['post'];
+          final reporter = item['reporter'];
+          
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.red.withOpacity(0.1),
+            child: ExpansionTile(
+              title: Text(
+                post['title'] ?? 'No title',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'By: ${post['author']['username'] ?? 'Unknown'} | Reported by: ${reporter['username'] ?? 'Unknown'}',
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Post Content: ${post['content'] ?? 'No content'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Reason: ${item['reason_display'] ?? item['reason']}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Reported at: ${item['reported_at']}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _dismissReport(item['report_id'], 'post'),
+                            icon: const Icon(Icons.check),
+                            label: const Text('Dismiss'),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => _deleteReportedContent(
+                              post['id'],
+                              'post',
+                              post['title'] ?? 'Untitled Post',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            icon: const Icon(Icons.delete),
+                            label: const Text('Delete Post'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } else {
+      // Reported Replies
+      if (_reportedReplies.isEmpty) {
+        return const Center(child: Text('No reported replies'));
+      }
+      return ListView.builder(
+        itemCount: _reportedReplies.length,
+        itemBuilder: (context, index) {
+          final item = _reportedReplies[index];
+          final reply = item['reply'];
+          final reporter = item['reporter'];
+          
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.red.withOpacity(0.1),
+            child: ExpansionTile(
+              title: const Text(
+                'Reported Reply',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'By: ${reply['author']['username'] ?? 'Unknown'} | Reported by: ${reporter['username'] ?? 'Unknown'}',
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reply: ${reply['content'] ?? 'No content'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Reason: ${item['reason_display'] ?? item['reason']}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'On post: ${item['post']['title'] ?? 'Unknown'}',
+                        style: const TextStyle(fontStyle: FontStyle.italic),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Reported at: ${item['reported_at']}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _dismissReport(item['report_id'], 'reply'),
+                            icon: const Icon(Icons.check),
+                            label: const Text('Dismiss'),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => _deleteReportedContent(
+                              reply['id'],
+                              'reply',
+                              reply['content']?.substring(0, 30) ?? 'Untitled Reply',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            icon: const Icon(Icons.delete),
+                            label: const Text('Delete Reply'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
   }
 
   Widget _buildUsersList() {

@@ -574,4 +574,200 @@ static Future<Map<String, dynamic>> createCategory({
       throw Exception('Failed to remove teacher from category: ${response.body}');
     }
   }
+
+  // ------------------------------
+  // REPORT A REPLY
+  // ------------------------------
+  static Future<Map<String, dynamic>> reportReply({
+    required String authToken,
+    required int replyId,
+    required String reason,
+    String? details,
+  }) async {
+    print('API Service - reportReply called');
+    print('Reply ID: $replyId');
+    print('Reason: $reason');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/report_reply.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'reply_id': replyId,
+        'reason': reason,
+        'details': details,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to report reply: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // REPORT A POST
+  // ------------------------------
+  static Future<Map<String, dynamic>> reportPost({
+    required String authToken,
+    required int postId,
+    required String reason,
+    String? details,
+  }) async {
+    print('API Service - reportPost called');
+    print('Post ID: $postId');
+    print('Reason: $reason');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/report_post.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'post_id': postId,
+        'reason': reason,
+        'details': details,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to report post: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // GET REPORTED POSTS (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> getReportedPosts({
+    required String authToken,
+  }) async {
+    print('API Service - getReportedPosts called (Admin)');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_reported_posts.php'),
+      headers: {
+        'Authorization': 'Bearer $authToken',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get reported posts: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // GET REPORTED REPLIES (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> getReportedReplies({
+    required String authToken,
+  }) async {
+    print('API Service - getReportedReplies called (Admin)');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/get_reported_replies.php'),
+      headers: {
+        'Authorization': 'Bearer $authToken',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to get reported replies: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // DISMISS REPORT (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> dismissReport({
+    required String authToken,
+    required int reportId,
+    String reportType = 'post',
+  }) async {
+    print('API Service - dismissReport called (Admin)');
+    print('Report ID: $reportId');
+    print('Report Type: $reportType');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/dismiss_report.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'report_id': reportId,
+        'report_type': reportType,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to dismiss report: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // DELETE REPORTED CONTENT (Admin only)
+  // ------------------------------
+  static Future<Map<String, dynamic>> deleteReportedContent({
+    required String authToken,
+    required int targetId,
+    required String targetType, // 'post' or 'reply'
+  }) async {
+    print('API Service - deleteReportedContent called (Admin)');
+    print('Target ID: $targetId');
+    print('Target Type: $targetType');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete_reported_content.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'target_id': targetId,
+        'target_type': targetType,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to delete reported content: ${response.body}');
+    }
+  }
 }

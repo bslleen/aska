@@ -683,6 +683,9 @@ class _HomePageState extends State<HomePage> {
   // Build single reply widget
   // --------------------------
   Widget _buildReplyWidget(dynamic reply) {
+    final replyId = reply['id'];
+    final currentUser = Provider.of<AuthProvider>(context, listen: false).user;
+
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
@@ -744,6 +747,36 @@ class _HomePageState extends State<HomePage> {
                     style: TextStyle(color: Colors.white, fontSize: 10),
                   ),
                 ),
+              // Flag button for reporting
+              if (currentUser != null && currentUser.id != reply['user_id'])
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.flag_outlined,
+                    color: Colors.white54,
+                    size: 18,
+                  ),
+                  onSelected: (value) {
+                    _showReportDialog(replyId, value);
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'wrong_info',
+                      child: Text('Wrong information'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'not_related',
+                      child: Text('Not related to the question'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'disrespectful',
+                      child: Text('Disrespectful'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'other',
+                      child: Text('Other'),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -755,6 +788,110 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  // --------------------------
+  // Show Report Dialog
+  // --------------------------
+  void _showReportDialog(int targetId, String reason) {
+    final reasonDisplay = {
+      'wrong_info': 'Wrong information',
+      'not_related': 'Not related to the question',
+      'disrespectful': 'Disrespectful',
+      'other': 'Other',
+    }[reason] ?? reason;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: color2,
+        title: const Text(
+          'Report Reply',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Are you sure you want to report this reply for "$reasonDisplay"?',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 16),
+            if (reason == 'other')
+              TextField(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Additional details (optional)',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: color3,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                maxLines: 3,
+                onChanged: (value) {
+                  // Store additional details
+                },
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _submitReport(targetId, reason);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Report', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --------------------------
+  // Submit Report
+  // --------------------------
+  Future<void> _submitReport(int replyId, String reason) async {
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null || user.authToken == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await ApiService.reportReply(
+        authToken: user.authToken!,
+        replyId: replyId,
+        reason: reason,
+      );
+
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reply reported successfully. Thank you for keeping the community safe!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        throw Exception(response['error'] ?? 'Failed to report reply');
+      }
+    } catch (e) {
+      debugPrint('Error reporting reply: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to report reply: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
