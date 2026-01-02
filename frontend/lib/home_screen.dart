@@ -1183,34 +1183,45 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        // Action buttons row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _showAddCategoryDialog(),
-                              icon: const Icon(Icons.add, color: Colors.white),
-                              label: const Text('Add Category', style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: color0,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        // Action buttons row (only for admin and teacher)
+                        if (context.watch<AuthProvider>().isAdmin || 
+                            context.watch<AuthProvider>().user?.userType == 'teacher')
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _showAddCategoryDialog(),
+                                icon: const Icon(Icons.add, color: Colors.white),
+                                label: const Text('Add Category', style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: color0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
                               ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: selectedCategories.isNotEmpty 
-                                  ? _deleteSelectedCategories 
-                                  : null,
-                              icon: const Icon(Icons.delete, color: Colors.white),
-                              label: const Text('Delete Selected', style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: selectedCategories.isNotEmpty 
-                                    ? Colors.red 
-                                    : Colors.grey,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ElevatedButton.icon(
+                                onPressed: selectedCategories.isNotEmpty 
+                                    ? _deleteSelectedCategories 
+                                    : null,
+                                icon: const Icon(Icons.delete, color: Colors.white),
+                                label: const Text('Delete Selected', style: TextStyle(color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: selectedCategories.isNotEmpty 
+                                      ? Colors.red 
+                                      : Colors.grey,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
                               ),
+                            ],
+                          )
+                        else
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Text(
+                              'Category management is restricted to administrators and teachers.',
+                              style: TextStyle(color: Colors.white54, fontSize: 12),
+                              textAlign: TextAlign.center,
                             ),
-                          ],
-                        ),
+                          ),
                         const SizedBox(height: 16),
                         // Category cards grid
                         Expanded(
