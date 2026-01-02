@@ -17,9 +17,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<dynamic> posts = [];
   List<dynamic> categories = [];
+  List<dynamic> allPosts = []; // Store all posts for filtering
   bool isLoading = true;
   bool showSearchOverlay = false;
-  Set<int> selectedCategories = {};
+  int? selectedCategoryId; // Single category selection
+  List<int> selectedCategories = []; // Multi-select for category deletion
 
   // Reply system state
   int? expandedPostId;
@@ -271,6 +273,33 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  // --------------------------
+  // Filter posts by category
+  // --------------------------
+  void _filterPostsByCategory(int? categoryId) {
+    setState(() {
+      selectedCategoryId = categoryId;
+      if (categoryId == null) {
+        // Show all posts
+        posts = List.from(allPosts);
+      } else {
+        // Filter posts by category
+        posts = allPosts.where((post) {
+          return post['category_id'] == categoryId || 
+                 post['category']?.toString().toLowerCase() == 
+                 categories.firstWhere((c) => c['id'] == categoryId, orElse: () => {'name': ''})['name']?.toString().toLowerCase();
+        }).toList();
+      }
+    });
+  }
+
+  // --------------------------
+  // Clear category filter
+  // --------------------------
+  void _clearCategoryFilter() {
+    _filterPostsByCategory(null);
   }
 
   // --------------------------
@@ -680,6 +709,72 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --------------------------
+  // Build Category Card Widget (Wattpad-style)
+  // --------------------------
+  Widget _buildCategoryCard(dynamic category, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            selectedCategories.remove(category['id']);
+          } else {
+            selectedCategories.add(category['id']);
+          }
+        });
+      },
+      onLongPress: () => _showDeleteCategoryDialog(category),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: isSelected ? color0 : color4,
+          borderRadius: BorderRadius.circular(16),
+          border: isSelected 
+              ? Border.all(color: Colors.white, width: 2)
+              : Border.all(color: Colors.transparent),
+          boxShadow: [
+            BoxShadow(
+              color: (isSelected ? color0 : Colors.black).withOpacity(isSelected ? 0.5 : 0.3),
+              spreadRadius: isSelected ? 4 : 2,
+              blurRadius: isSelected ? 12 : 6,
+              offset: Offset(0, isSelected ? 4 : 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isSelected)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.check,
+                    size: 14,
+                    color: color0,
+                  ),
+                ),
+              Text(
+                category['name']?.toString() ?? 'Unknown',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --------------------------
   // Build single reply widget
   // --------------------------
   Widget _buildReplyWidget(dynamic reply) {
@@ -1051,85 +1146,92 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           // --------------------------
-          // Search Overlay
+          // Search Overlay (Full Screen)
           // --------------------------
           if (showSearchOverlay)
             Positioned.fill(
-              child: GestureDetector(
-                onTap: () => setState(() => showSearchOverlay = false),
-                child: Container(
-                  color: color1.withOpacity(0.95),
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: color2,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: categories.isEmpty
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
-                                  children: categories
-                                      .map(
-                                        (cat) => FilterChip(
-                                          backgroundColor: selectedCategories.contains(cat['id']) 
-                                              ? color0 
-                                              : color4,
-                                          selected: selectedCategories.contains(cat['id']),
-                                          label: Text(
-                                            cat['name']?.toString() ?? 'Unknown',
-                                            style: const TextStyle(color: Colors.white),
-                                          ),
-                                          onSelected: (bool selected) {
-                                            setState(() {
-                                              if (selected) {
-                                                selectedCategories.add(cat['id']);
-                                              } else {
-                                                selectedCategories.remove(cat['id']);
-                                              }
-                                            });
-                                          },
-                                          deleteIcon: const Icon(Icons.close, color: Colors.white, size: 16),
-                                          onDeleted: () => _showDeleteCategoryDialog(cat),
-                                          selectedColor: color0,
-                                          checkmarkColor: Colors.white,
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      onPressed: () => _showAddCategoryDialog(),
-                                      icon: const Icon(Icons.add, color: Colors.white),
-                                      label: const Text('Add Category', style: TextStyle(color: Colors.white)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: color0,
-                                      ),
-                                    ),
-                                    ElevatedButton.icon(
-                                      onPressed: selectedCategories.isNotEmpty 
-                                          ? _deleteSelectedCategories 
-                                          : null,
-                                      icon: const Icon(Icons.delete, color: Colors.white),
-                                      label: const Text('Delete Selected', style: TextStyle(color: Colors.white)),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: selectedCategories.isNotEmpty 
-                                            ? Colors.red 
-                                            : Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+              child: Container(
+                color: color1,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // Header with close button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Search Categories',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            IconButton(
+                              onPressed: () => setState(() => showSearchOverlay = false),
+                              icon: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: color2,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.close, color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Action buttons row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => _showAddCategoryDialog(),
+                              icon: const Icon(Icons.add, color: Colors.white),
+                              label: const Text('Add Category', style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: color0,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: selectedCategories.isNotEmpty 
+                                  ? _deleteSelectedCategories 
+                                  : null,
+                              icon: const Icon(Icons.delete, color: Colors.white),
+                              label: const Text('Delete Selected', style: TextStyle(color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: selectedCategories.isNotEmpty 
+                                    ? Colors.red 
+                                    : Colors.grey,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Category cards grid
+                        Expanded(
+                          child: categories.isEmpty
+                              ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                              : GridView.builder(
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 1.3,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                  ),
+                                  itemCount: categories.length,
+                                  itemBuilder: (context, index) {
+                                    final cat = categories[index];
+                                    final isSelected = selectedCategories.contains(cat['id']);
+                                    return _buildCategoryCard(cat, isSelected);
+                                  },
+                                ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
