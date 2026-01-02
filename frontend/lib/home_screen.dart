@@ -452,6 +452,246 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --------------------------
+  // Show Edit Post Modal
+  // --------------------------
+  void _showEditPostModal(dynamic post) {
+    final postId = post['post_id'];
+    final titleController = TextEditingController(text: post['title'] ?? '');
+    final contentController = TextEditingController(text: post['content'] ?? '');
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+          return Container(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            decoration: const BoxDecoration(
+              color: Color(0xFF38263F),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Edit Post',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Title field
+                    TextField(
+                      controller: titleController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Title',
+                        hintStyle: const TextStyle(color: Colors.white54),
+                        filled: true,
+                        fillColor: const Color(0xFF52425C),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Content field
+                    TextField(
+                      controller: contentController,
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        hintText: 'Content',
+                        hintStyle: const TextStyle(color: Colors.white54),
+                        filled: true,
+                        fillColor: const Color(0xFF52425C),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Save button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                if (titleController.text.trim().isEmpty ||
+                                    contentController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Please fill in all fields'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setState(() => isSubmitting = true);
+
+                                try {
+                                  final user = Provider.of<AuthProvider>(context, listen: false).user;
+                                  if (user == null || user.authToken == null) {
+                                    throw Exception('User not authenticated');
+                                  }
+
+                                  await ApiService.updatePost(
+                                    authToken: user.authToken!,
+                                    postId: postId,
+                                    title: titleController.text.trim(),
+                                    content: contentController.text.trim(),
+                                  );
+
+                                  Navigator.pop(context);
+                                  fetchPosts();
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Post updated successfully!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  debugPrint('Error updating post: $e');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to update post: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } finally {
+                                  setState(() => isSubmitting = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: color0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // --------------------------
+  // Show Delete Confirmation Dialog
+  // --------------------------
+  Future<bool> _showDeleteConfirmation(dynamic post) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: color2,
+            title: const Text(
+              'Delete Post',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              'Are you sure you want to delete "${post['title']?.toString() ?? "this post"}"? This action cannot be undone.',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                child: const Text('Delete', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  // --------------------------
+  // Delete Post
+  // --------------------------
+  Future<void> _deletePost(dynamic post) async {
+    final postId = post['post_id'];
+
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null || user.authToken == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await ApiService.deletePostUser(
+        authToken: user.authToken!,
+        postId: postId,
+      );
+
+      // Remove post from local list
+      setState(() {
+        posts.removeWhere((p) => p['post_id'] == postId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error deleting post: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to delete post: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // --------------------------
   // Build single post widget
   // --------------------------
   Widget _buildPostWidget(dynamic post) {
@@ -461,6 +701,8 @@ class _HomePageState extends State<HomePage> {
     final replies = postReplies[postId] ?? [];
     final isLoadingReplies = repliesLoading[postId] ?? false;
     final isReplying = replying[postId] ?? false;
+    final currentUser = Provider.of<AuthProvider>(context, listen: false).user;
+    final bool isOwner = currentUser != null && post['user_id'] == currentUser.id;
 
     // Initialize reply controller if not exists
     if (!replyControllers.containsKey(postId)) {
@@ -521,10 +763,55 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    Icon(
-                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      color: Colors.white54,
-                    ),
+                    // 3-dot menu for post owner
+                    if (isOwner)
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: Colors.white54,
+                        ),
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            _showEditPostModal(post);
+                          } else if (value == 'delete') {
+                            final confirmed = await _showDeleteConfirmation(post);
+                            if (confirmed) {
+                              await _deletePost(post);
+                            }
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 20, color: Colors.white70),
+                                SizedBox(width: 8),
+                                Text('Edit Post', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete Post', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        color: color2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      )
+                    else
+                      Icon(
+                        isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                        color: Colors.white54,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),

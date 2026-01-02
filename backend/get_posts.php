@@ -3,6 +3,7 @@ require 'db.php';
 
 $sql = "SELECT 
             p.id AS post_id, 
+            p.user_id,
             p.title, 
             p.content, 
             u.username AS author, 

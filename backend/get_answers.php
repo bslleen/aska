@@ -16,6 +16,7 @@ if (!$post_id) {
 try {
     $sql = "SELECT 
                 a.id AS answer_id, 
+                a.user_id,
                 a.content, 
                 u.username AS author, 
                 a.is_accepted,

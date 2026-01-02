@@ -377,7 +377,7 @@ static Future<Map<String, dynamic>> createCategory({
     print('API Service - deletePost called (Admin)');
     print('Post ID: $postId');
     print('Auth Token: ${authToken.substring(0, 20)}...');
-    
+
     final response = await http.post(
       Uri.parse('$baseUrl/delete_post.php'),
       headers: {
@@ -396,6 +396,140 @@ static Future<Map<String, dynamic>> createCategory({
       return json.decode(response.body);
     } else {
       throw Exception('Failed to delete post: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // UPDATE OWN POST (User)
+  // ------------------------------
+  static Future<Map<String, dynamic>> updatePost({
+    required String authToken,
+    required int postId,
+    String? title,
+    String? content,
+  }) async {
+    print('API Service - updatePost called (User)');
+    print('Post ID: $postId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/update_post.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'post_id': postId,
+        'title': title,
+        'content': content,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to update post: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // DELETE OWN POST (User)
+  // ------------------------------
+  static Future<Map<String, dynamic>> deletePostUser({
+    required String authToken,
+    required int postId,
+  }) async {
+    print('API Service - deletePostUser called (User)');
+    print('Post ID: $postId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete_post_user.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'post_id': postId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to delete post: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // UPDATE OWN ANSWER (User)
+  // ------------------------------
+  static Future<Map<String, dynamic>> updateAnswer({
+    required String authToken,
+    required int answerId,
+    required String content,
+  }) async {
+    print('API Service - updateAnswer called (User)');
+    print('Answer ID: $answerId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/update_answer.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'answer_id': answerId,
+        'content': content,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to update answer: ${response.body}');
+    }
+  }
+
+  // ------------------------------
+  // DELETE OWN ANSWER (User)
+  // ------------------------------
+  static Future<Map<String, dynamic>> deleteAnswer({
+    required String authToken,
+    required int answerId,
+  }) async {
+    print('API Service - deleteAnswer called (User)');
+    print('Answer ID: $answerId');
+    print('Auth Token: ${authToken.substring(0, 20)}...');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/delete_answer.php'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({
+        'answer_id': answerId,
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to delete answer: ${response.body}');
     }
   }
 
