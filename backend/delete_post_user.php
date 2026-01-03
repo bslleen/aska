@@ -11,10 +11,17 @@ $input = json_decode(file_get_contents('php://input'), true);
 $token = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 $token = str_replace('Bearer ', '', $token);
 
-$userId = validateToken($token);
-if (!$userId) {
+$payload = validateToken($token);
+if (!$payload) {
     http_response_code(401);
     echo json_encode(['error' => 'Invalid or expired token']);
+    exit;
+}
+
+$userId = $payload['user_id'] ?? null;
+if (!$userId) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Could not extract user ID from token']);
     exit;
 }
 
@@ -49,8 +56,12 @@ try {
     $stmt = $pdo->prepare("DELETE FROM answers WHERE post_id = ?");
     $stmt->execute([$postId]);
 
-    // Delete associated votes
-    $stmt = $pdo->prepare("DELETE FROM votes WHERE post_id = ?");
+    // Delete associated votes on this post
+    $stmt = $pdo->prepare("DELETE FROM votes WHERE target_type = 'post' AND target_id = ?");
+    $stmt->execute([$postId]);
+
+    // Delete votes on answers to this post
+    $stmt = $pdo->prepare("DELETE FROM votes WHERE target_type = 'answer' AND target_id IN (SELECT id FROM answers WHERE post_id = ?)");
     $stmt->execute([$postId]);
 
     // Delete the post

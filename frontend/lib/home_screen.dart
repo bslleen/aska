@@ -763,7 +763,7 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    // 3-dot menu for post owner
+                    // 3-dot menu for post owner, flag button for others
                     if (isOwner)
                       PopupMenuButton<String>(
                         icon: const Icon(
@@ -807,11 +807,41 @@ class _HomePageState extends State<HomePage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       )
-                    else
+                    else ...[
+                      // Report button for non-owners
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          Icons.flag_outlined,
+                          color: Colors.white54,
+                          size: 20,
+                        ),
+                        onSelected: (value) {
+                          _showReportPostDialog(postId, value, post['title'] ?? 'Untitled Post');
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'wrong_info',
+                            child: Text('Wrong information'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'not_related',
+                            child: Text('Not related to the question'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'disrespectful',
+                            child: Text('Disrespectful'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'other',
+                            child: Text('Other'),
+                          ),
+                        ],
+                      ),
                       Icon(
                         isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                         color: Colors.white54,
                       ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -1240,7 +1270,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --------------------------
-  // Submit Report
+  // Submit Report (for replies)
   // --------------------------
   Future<void> _submitReport(int replyId, String reason) async {
     try {
@@ -1270,6 +1300,117 @@ class _HomePageState extends State<HomePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to report reply: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // --------------------------
+  // Show Report Post Dialog
+  // --------------------------
+  void _showReportPostDialog(int postId, String reason, String postTitle) {
+    final reasonDisplay = {
+      'wrong_info': 'Wrong information',
+      'not_related': 'Not related to the question',
+      'disrespectful': 'Disrespectful',
+      'other': 'Other',
+    }[reason] ?? reason;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: color2,
+        title: const Text(
+          'Report Post',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Are you sure you want to report this post for "$reasonDisplay"?',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '"${postTitle.length > 50 ? postTitle.substring(0, 50) + '...' : postTitle}"',
+              style: const TextStyle(
+                color: Colors.white54,
+                fontStyle: FontStyle.italic,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (reason == 'other')
+              TextField(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Additional details (optional)',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: color3,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                maxLines: 3,
+                controller: TextEditingController(),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _submitPostReport(postId, reason);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Report', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --------------------------
+  // Submit Post Report
+  // --------------------------
+  Future<void> _submitPostReport(int postId, String reason) async {
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null || user.authToken == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await ApiService.reportPost(
+        authToken: user.authToken!,
+        postId: postId,
+        reason: reason,
+      );
+
+      if (response['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Post reported successfully. Thank you for keeping the community safe!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        throw Exception(response['error'] ?? 'Failed to report post');
+      }
+    } catch (e) {
+      debugPrint('Error reporting post: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to report post: $e'),
           backgroundColor: Colors.red,
         ),
       );
