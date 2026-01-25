@@ -69,12 +69,16 @@ try {
             a.id AS answer_id,
             a.content,
             u.username AS author,
+            u.user_type AS author_type,
+            u.id AS author_id,
             a.created_at,
             p.title AS post_title,
-            p.id AS post_id
+            p.id AS post_id,
+            c.name AS category_name
         FROM answers a
         JOIN users u ON a.user_id = u.id
         JOIN posts p ON a.post_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
         WHERE a.target_student_id = ?
         ORDER BY a.created_at DESC
     ");
