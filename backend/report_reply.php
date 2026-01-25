@@ -23,7 +23,7 @@ if (!$authToken) {
 }
 
 // Verify token and get user
-$user = verifyToken($authToken);
+$user = validateToken($authToken);
 if (!$user) {
     echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
     exit;
@@ -48,40 +48,39 @@ if (!in_array($reason, $validReasons)) {
     exit;
 }
 
-// Check if reply exists
-$checkReply = $conn->prepare("SELECT id FROM answers WHERE id = ?");
-$checkReply->bind_param("i", $replyId);
-$checkReply->execute();
-$replyResult = $checkReply->get_result();
+// Check if reply exists (using PDO for consistency)
+$checkReply = $pdo->prepare("SELECT id FROM answers WHERE id = ?");
+$checkReply->execute([$replyId]);
+$replyResult = $checkReply->fetch();
 
-if ($replyResult->num_rows === 0) {
+if (!$replyResult) {
     echo json_encode(['success' => false, 'error' => 'Reply not found']);
     exit;
 }
-$replyData = $replyResult->fetch_assoc();
 
-// Check if user already reported this reply
-$checkExisting = $conn->prepare("SELECT id FROM reports WHERE report_type = 'reply' AND target_id = ? AND reporter_id = ?");
-$checkExisting->bind_param("ii", $replyId, $user['id']);
-$checkExisting->execute();
-$existingResult = $checkExisting->get_result();
+// Check if user already reported this reply (using PDO)
+$checkExisting = $pdo->prepare("SELECT id FROM reports WHERE report_type = 'reply' AND target_id = ? AND reporter_id = ?");
+$checkExisting->execute([$replyId, $user['user_id']]);
+$existingResult = $checkExisting->fetch();
 
-if ($existingResult->num_rows > 0) {
+if ($existingResult) {
     echo json_encode(['success' => false, 'error' => 'You have already reported this reply']);
     exit;
 }
 
-// Insert report
-$stmt = $conn->prepare("INSERT INTO reports (report_type, target_id, reporter_id, reason, details) VALUES ('reply', ?, ?, ?, ?)");
-$stmt->bind_param("iiis", $replyId, $user['id'], $reason, $details);
+// Insert report (using PDO)
+$stmt = $pdo->prepare("INSERT INTO reports (report_type, target_id, reporter_id, reason, details) VALUES ('reply', ?, ?, ?, ?)");
+$stmt->execute([$replyId, $user['user_id'], $reason, $details]);
 
-if ($stmt->execute()) {
+$reportId = $pdo->lastInsertId();
+
+if ($reportId) {
     echo json_encode([
         'success' => true, 
         'message' => 'Reply reported successfully',
-        'report_id' => $conn->insert_id
+        'report_id' => $reportId
     ]);
 } else {
-    echo json_encode(['success' => false, 'error' => 'Failed to report reply: ' . $conn->error]);
+    echo json_encode(['success' => false, 'error' => 'Failed to report reply']);
 }
 

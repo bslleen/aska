@@ -1,16 +1,27 @@
 <?php
 // Get Reported Posts - Fetch all posts with reports
 header('Content-Type: application/json');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once 'db.php';
 require_once 'token_utils.php';
 require_once 'admin_middleware.php';
 
+// Debug: Log the request
+error_log("=== get_reported_posts.php called ===");
+error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+error_log("HTTP_AUTHORIZATION: " . ($_SERVER['HTTP_AUTHORIZATION'] ?? 'NOT SET'));
+
 // Verify admin access
 $user = verifyAdminAccess();
 if (isset($user['error'])) {
+    error_log("Admin access denied: " . $user['error']);
     echo json_encode(['success' => false, 'error' => $user['error']]);
     exit;
 }
+
+error_log("Admin access granted for user_id: " . ($user['user_id'] ?? 'unknown'));
 
 // Get all posts that have reports
 $sql = "
