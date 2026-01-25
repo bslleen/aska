@@ -20,6 +20,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _selectedTab = 0; // 0: Users, 1: Posts, 2: Reported Content
   int _reportSubTab = 0; // 0: Posts, 1: Replies
 
+  // Color palette - matching the app's theme
+  static const Color color0 = Color(0xFFC080DD); // Pink/lilac (main accent)
+  static const Color color1 = Colors.black; // Black (background)
+  static const Color color2 = Color(0xFF38263F); // Dark purple
+  static const Color color3 = Color(0xFF52425C); // Medium purple
+  static const Color color4 = Color(0xFF7A6284); // Light purple
+
   @override
   void initState() {
     super.initState();
@@ -133,16 +140,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Dismiss Report'),
-        content: const Text('Are you sure you want to dismiss this report? The content will remain visible.'),
+        backgroundColor: color2,
+        title: const Text('Dismiss Report', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to dismiss this report? The content will remain visible.', style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Dismiss'),
+            style: ElevatedButton.styleFrom(backgroundColor: color0),
+            child: const Text('Dismiss', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -158,13 +167,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
         
         if (response['success'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Report dismissed successfully')),
+            SnackBar(content: const Text('Report dismissed successfully', style: TextStyle(color: Colors.white)), backgroundColor: color2),
           );
           await _loadReportedContent();
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to dismiss report: $e')),
+          SnackBar(content: Text('Failed to dismiss report: $e', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red),
         );
       }
     }
@@ -333,17 +342,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final authProvider = Provider.of<AuthProvider>(context);
     
     if (!authProvider.isAdmin) {
-      return const Scaffold(
+      return Scaffold(
+        backgroundColor: color1,
         body: Center(
-          child: Text('Access denied. Admin privileges required.'),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 64, color: Colors.white54),
+              const SizedBox(height: 16),
+              const Text(
+                'Access denied',
+                style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Admin privileges required.',
+                style: TextStyle(color: Colors.white54, fontSize: 16),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return Scaffold(
+      backgroundColor: color1,
       appBar: AppBar(
-        title: const Text('Admin Dashboard 👑'),
-        backgroundColor: Colors.deepPurple,
+        title: const Text('Admin Dashboard'),
+        backgroundColor: color2,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -362,8 +388,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       _loadAdminData();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedTab == 0 ? Colors.deepPurple : Colors.grey[300],
-                      foregroundColor: _selectedTab == 0 ? Colors.white : Colors.black,
+                      backgroundColor: _selectedTab == 0 ? color0 : color3,
+                      foregroundColor: _selectedTab == 0 ? Colors.white : Colors.white,
                     ),
                     child: Text('👥 Users (${_users.length})'),
                   ),
@@ -378,8 +404,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       _loadAdminData();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedTab == 1 ? Colors.deepPurple : Colors.grey[300],
-                      foregroundColor: _selectedTab == 1 ? Colors.white : Colors.black,
+                      backgroundColor: _selectedTab == 1 ? color0 : color3,
+                      foregroundColor: _selectedTab == 1 ? Colors.white : Colors.white,
                     ),
                     child: Text('📝 Posts (${_posts.length})'),
                   ),
@@ -394,8 +420,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       _loadReportedContent();
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedTab == 2 ? Colors.deepPurple : Colors.grey[300],
-                      foregroundColor: _selectedTab == 2 ? Colors.white : Colors.black,
+                      backgroundColor: _selectedTab == 2 ? color0 : color3,
+                      foregroundColor: _selectedTab == 2 ? Colors.white : Colors.white,
                     ),
                     child: Text('🚩 Reported (${_reportedPosts.length + _reportedReplies.length})'),
                   ),
@@ -418,8 +444,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         });
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _reportSubTab == 0 ? Colors.orange : Colors.grey[300],
-                        foregroundColor: _reportSubTab == 0 ? Colors.white : Colors.black,
+                        backgroundColor: _reportSubTab == 0 ? color0 : color4,
+                        foregroundColor: _reportSubTab == 0 ? Colors.white : Colors.white,
                       ),
                       child: Text('📄 Posts (${_reportedPosts.length})'),
                     ),
@@ -433,8 +459,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         });
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _reportSubTab == 1 ? Colors.orange : Colors.grey[300],
-                        foregroundColor: _reportSubTab == 1 ? Colors.white : Colors.black,
+                        backgroundColor: _reportSubTab == 1 ? color0 : color4,
+                        foregroundColor: _reportSubTab == 1 ? Colors.white : Colors.white,
                       ),
                       child: Text('💬 Replies (${_reportedReplies.length})'),
                     ),
@@ -446,7 +472,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
           // Content
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: color0,
+                    ),
+                  )
                 : _error != null
                     ? Center(
                         child: Column(
@@ -454,10 +484,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           children: [
                             const Icon(Icons.error, size: 48, color: Colors.red),
                             const SizedBox(height: 16),
-                            Text('Error: $_error'),
+                            Text(
+                              'Error: $_error',
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadAdminData,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: color0,
+                                foregroundColor: Colors.white,
+                              ),
                               child: const Text('Retry'),
                             ),
                           ],
@@ -481,7 +518,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (_reportSubTab == 0) {
       // Reported Posts
       if (_reportedPosts.isEmpty) {
-        return const Center(child: Text('No reported posts'));
+        return Center(
+          child: Text(
+            'No reported posts',
+            style: TextStyle(color: Colors.white54),
+          ),
+        );
       }
       return ListView.builder(
         itemCount: _reportedPosts.length,
@@ -492,14 +534,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
           
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.red.withOpacity(0.1),
+            color: color2,
             child: ExpansionTile(
               title: Text(
                 post['title'] ?? 'No title',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
               ),
               subtitle: Text(
                 'By: ${post['author']['username'] ?? 'Unknown'} | Reported by: ${reporter['username'] ?? 'Unknown'}',
+                style: const TextStyle(color: Colors.white70),
               ),
               children: [
                 Padding(
@@ -509,7 +552,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     children: [
                       Text(
                         'Post Content: ${post['content'] ?? 'No content'}',
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 14, color: Colors.white),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -526,7 +569,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(height: 8),
                       Text(
                         'Reported at: ${item['reported_at']}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -535,6 +578,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             onPressed: () => _dismissReport(item['report_id'], 'post'),
                             icon: const Icon(Icons.check),
                             label: const Text('Dismiss'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: color4,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           ElevatedButton.icon(
@@ -562,7 +609,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     } else {
       // Reported Replies
       if (_reportedReplies.isEmpty) {
-        return const Center(child: Text('No reported replies'));
+        return Center(
+          child: Text(
+            'No reported replies',
+            style: TextStyle(color: Colors.white54),
+          ),
+        );
       }
       return ListView.builder(
         itemCount: _reportedReplies.length,
@@ -573,14 +625,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
           
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.red.withOpacity(0.1),
+            color: color2,
             child: ExpansionTile(
               title: const Text(
                 'Reported Reply',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
               ),
               subtitle: Text(
                 'By: ${reply['author']['username'] ?? 'Unknown'} | Reported by: ${reporter['username'] ?? 'Unknown'}',
+                style: const TextStyle(color: Colors.white70),
               ),
               children: [
                 Padding(
@@ -590,7 +643,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     children: [
                       Text(
                         'Reply: ${reply['content'] ?? 'No content'}',
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 14, color: Colors.white),
                       ),
                       const SizedBox(height: 8),
                       Container(
@@ -607,12 +660,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const SizedBox(height: 8),
                       Text(
                         'On post: ${item['post']['title'] ?? 'Unknown'}',
-                        style: const TextStyle(fontStyle: FontStyle.italic),
+                        style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.white70),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Reported at: ${item['reported_at']}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: const TextStyle(color: Colors.white54, fontSize: 12),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -621,6 +674,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             onPressed: () => _dismissReport(item['report_id'], 'reply'),
                             icon: const Icon(Icons.check),
                             label: const Text('Dismiss'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: color4,
+                              foregroundColor: Colors.white,
+                            ),
                           ),
                           const SizedBox(width: 16),
                           ElevatedButton.icon(
@@ -650,7 +707,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildUsersList() {
     if (_users.isEmpty) {
-      return const Center(child: Text('No users found'));
+      return Center(
+        child: Text(
+          'No users found',
+          style: TextStyle(color: Colors.white54),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -662,17 +724,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
         
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: color2,
           child: ListTile(
             leading: CircleAvatar(
-              child: Text(roleIcon),
+              backgroundColor: color0,
+              child: Text(roleIcon, style: const TextStyle(fontSize: 16)),
             ),
-            title: Text('${user['username']} ($roleIcon ${user['user_type']})'),
+            title: Text(
+              '${user['username']} ($roleIcon ${user['user_type']})',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Email: ${user['email']}'),
-                Text('Posts: ${user['post_count']}, Answers: ${user['answer_count']}'),
-                Text('Joined: ${user['created_at']}'),
+                Text('Email: ${user['email']}', style: const TextStyle(color: Colors.white70)),
+                Text('Posts: ${user['post_count']}, Answers: ${user['answer_count']}', style: const TextStyle(color: Colors.white70)),
+                Text('Joined: ${user['created_at']}', style: const TextStyle(color: Colors.white54)),
               ],
             ),
             trailing: PopupMenuButton<String>(
@@ -696,6 +763,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     child: Text('👑 Make Admin'),
                   ),
               ],
+              color: color2,
             ),
             onLongPress: user['user_type'] != 'admin' ? () => _deleteUser(user['id']) : null,
           ),
@@ -706,7 +774,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildPostsList() {
     if (_posts.isEmpty) {
-      return const Center(child: Text('No posts found'));
+      return Center(
+        child: Text(
+          'No posts found',
+          style: TextStyle(color: Colors.white54),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -716,9 +789,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: color2,
           child: ListTile(
-            title: Text(post['title'] ?? 'No title'),
-            subtitle: Text('By: ${post['author'] ?? 'Unknown'} | Category: ${post['category'] ?? 'Unknown'}'),
+            title: Text(
+              post['title'] ?? 'No title',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              'By: ${post['author'] ?? 'Unknown'} | Category: ${post['category'] ?? 'Unknown'}',
+              style: const TextStyle(color: Colors.white70),
+            ),
             trailing: IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () => _deletePost(post['post_id']),
