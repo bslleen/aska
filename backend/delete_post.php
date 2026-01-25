@@ -29,10 +29,12 @@ if (preg_match('/Bearer\s+(\S+)/', $authHeader, $matches)) {
 }
 
 // Check admin access
-$adminPayload = checkAdminAccess($token);
-if (!$adminPayload) {
+$adminPayload = verifyAdminAccess();
+if (!$adminPayload || isset($adminPayload['error'])) {
+    echo json_encode(['error' => $adminPayload['error'] ?? 'Access denied']);
     exit;
 }
+$adminUserId = $adminPayload['user_id'];
 
 $input = json_decode(file_get_contents('php://input'), true);
 

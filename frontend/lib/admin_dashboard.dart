@@ -586,7 +586,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           const SizedBox(width: 16),
                           ElevatedButton.icon(
                             onPressed: () => _deleteReportedContent(
-                              post['id'],
+                              int.parse(post['id'].toString()),
                               'post',
                               post['title'] ?? 'Untitled Post',
                             ),
@@ -682,7 +682,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           const SizedBox(width: 16),
                           ElevatedButton.icon(
                             onPressed: () => _deleteReportedContent(
-                              reply['id'],
+                              int.parse(reply['id'].toString()),
                               'reply',
                               reply['content']?.substring(0, 30) ?? 'Untitled Reply',
                             ),
@@ -801,9 +801,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             trailing: IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _deletePost(post['post_id']),
+              onPressed: () => _deletePost(int.parse(post['post_id'].toString())),
             ),
-            onLongPress: () => _deletePost(post['post_id']),
+            onLongPress: () => _deletePost(int.parse(post['post_id'].toString())),
           ),
         );
       },
