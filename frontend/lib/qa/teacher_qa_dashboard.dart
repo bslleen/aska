@@ -5,7 +5,7 @@ import '../api_service.dart';
 
 // Color palette (matching the existing app theme)
 class TeacherQAColors {
-  static const Color color0 = Color(0xFFC080DD); // Orange/pink accent
+  static const Color color0 = Color(0xFFC080DD); // Pink/lilac accent
   static const Color color1 = Colors.black; // Black background
   static const Color color2 = Color(0xFF38263F); // Dark purple
   static const Color color3 = Color(0xFF52425C); // Medium purple
@@ -24,15 +24,28 @@ class TeacherQADashboard extends StatefulWidget {
 
 class _TeacherQADashboardState extends State<TeacherQADashboard> {
   List<dynamic> questions = [];
+  List<dynamic> allQuestions = []; // Keep original for filtering
   List<dynamic> assignedCategories = [];
   Map<String, dynamic>? teacherData;
   bool isLoading = true;
+  bool isSearching = false;
   String selectedCategory = 'all';
+  String searchQuery = '';
+  String searchType = 'all'; // 'all', 'student', 'keyword'
+  
+  // Search controller
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     fetchData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchData() async {
@@ -46,7 +59,8 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
       
       setState(() {
         teacherData = teacherDataResponse;
-        questions = teacherDataResponse['questions'] ?? [];
+        allQuestions = teacherDataResponse['questions'] ?? [];
+        questions = allQuestions;
         assignedCategories = teacherDataResponse['assigned_categories'] ?? [];
         isLoading = false;
       });
@@ -56,7 +70,96 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
     }
   }
 
+  // Search for questions
+  Future<void> searchQuestions(String query) async {
+    if (query.isEmpty) {
+      // If search is empty, show all questions
+      setState(() {
+        searchQuery = '';
+        questions = allQuestions;
+        isSearching = false;
+      });
+      return;
+    }
+
+    setState(() {
+      isSearching = true;
+      searchQuery = query;
+    });
+
+    try {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user == null) return;
+
+      final response = await ApiService.searchTeacherQuestions(
+        teacherId: user.id,
+        query: query,
+        searchType: searchType,
+        categoryId: selectedCategory,
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          questions = response['questions'] ?? [];
+          // Update categories if returned
+          if (response['assigned_categories'] != null) {
+            assignedCategories = response['assigned_categories'];
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error searching questions: $e');
+      // Fall back to local filtering
+      _localSearch(query);
+    } finally {
+      setState(() => isSearching = false);
+    }
+  }
+
+  // Local search fallback
+  void _localSearch(String query) {
+    query = query.toLowerCase();
+    setState(() {
+      questions = allQuestions.where((q) {
+        if (searchType == 'student') {
+          return (q['student_name'] ?? '').toLowerCase().contains(query);
+        } else if (searchType == 'keyword') {
+          return (q['title'] ?? '').toLowerCase().contains(query) ||
+                 (q['content'] ?? '').toLowerCase().contains(query);
+        } else {
+          return (q['student_name'] ?? '').toLowerCase().contains(query) ||
+                 (q['title'] ?? '').toLowerCase().contains(query) ||
+                 (q['content'] ?? '').toLowerCase().contains(query);
+        }
+      }).toList();
+    });
+  }
+
+  // Clear search
+  void clearSearch() {
+    _searchController.clear();
+    setState(() {
+      searchQuery = '';
+      searchType = 'all';
+      questions = allQuestions;
+      isSearching = false;
+    });
+  }
+
+  // Change search type
+  void changeSearchType(String type) {
+    setState(() {
+      searchType = type;
+    });
+    if (searchQuery.isNotEmpty) {
+      searchQuestions(searchQuery);
+    }
+  }
+
+  // Get filtered questions (for category filter when not searching)
   List<dynamic> getFilteredQuestions() {
+    if (searchQuery.isNotEmpty) return questions;
+    
     if (selectedCategory == 'all') return questions;
     return questions.where((q) => q['category_id'].toString() == selectedCategory).toList();
   }
@@ -93,11 +196,28 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
           icon: Icon(Icons.arrow_back, color: TeacherQAColors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // Refresh button
+          IconButton(
+            icon: Icon(Icons.refresh, color: TeacherQAColors.white),
+            onPressed: () {
+              clearSearch();
+              fetchData();
+            },
+          ),
+        ],
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator(color: TeacherQAColors.color0))
           : Column(
               children: [
+                // Search Bar
+                _buildSearchBar(),
+                
+                // Search Type Chips (only show when searching)
+                if (searchQuery.isNotEmpty)
+                  _buildSearchTypeChips(),
+                
                 // Stats cards
                 _buildStatsCards(),
                 
@@ -113,13 +233,129 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
     );
   }
 
+  Widget _buildSearchBar() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: TeacherQAColors.color2,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: TeacherQAColors.color4),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Icon(
+                    Icons.search,
+                    color: TeacherQAColors.white54,
+                  ),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: TeacherQAColors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Search students or questions...',
+                      hintStyle: TextStyle(color: TeacherQAColors.white54),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onChanged: (value) {
+                      if (value.isEmpty) {
+                        clearSearch();
+                      } else {
+                        // Debounce search
+                        Future.delayed(Duration(milliseconds: 300), () {
+                          if (value == _searchController.text) {
+                            searchQuestions(value);
+                          }
+                        });
+                      }
+                    },
+                  ),
+                ),
+                if (_searchController.text.isNotEmpty)
+                  IconButton(
+                    icon: Icon(Icons.clear, color: TeacherQAColors.white54),
+                    onPressed: clearSearch,
+                  ),
+                Container(
+                  padding: EdgeInsets.only(right: 12),
+                  child: isSearching
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(TeacherQAColors.color0),
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchTypeChips() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(
+            'Search in:',
+            style: TextStyle(
+              color: TeacherQAColors.white70,
+              fontSize: 12,
+            ),
+          ),
+          SizedBox(width: 8),
+          _buildSearchTypeChip('All', 'all'),
+          SizedBox(width: 8),
+          _buildSearchTypeChip('Student Name', 'student'),
+          SizedBox(width: 8),
+          _buildSearchTypeChip('Keywords', 'keyword'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchTypeChip(String label, String type) {
+    final isSelected = searchType == type;
+    return GestureDetector(
+      onTap: () => changeSearchType(type),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? TeacherQAColors.color0 : TeacherQAColors.color3,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: TeacherQAColors.white,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatsCards() {
     final stats = teacherData?['stats'] ?? {};
-    final totalQuestions = questions.length;
+    final totalQuestions = questions.isEmpty ? (allQuestions.length) : questions.length;
     final categoriesCount = assignedCategories.length;
     
     return Container(
-      margin: EdgeInsets.all(16),
+      margin: EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
@@ -155,7 +391,7 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: TeacherQAColors.color2,
         borderRadius: BorderRadius.circular(12),
@@ -163,13 +399,13 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: 8),
+          Icon(icon, color: color, size: 20),
+          SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
               color: TeacherQAColors.white,
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -177,7 +413,7 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
             title,
             style: TextStyle(
               color: TeacherQAColors.white70,
-              fontSize: 12,
+              fontSize: 10,
             ),
             textAlign: TextAlign.center,
           ),
@@ -190,7 +426,8 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
     List<String> categoryOptions = ['all'] + assignedCategories.map((c) => c['name'] as String).toList();
     
     return Container(
-      height: 60,
+      height: 50,
+      margin: EdgeInsets.only(top: 16),
       padding: EdgeInsets.symmetric(horizontal: 16),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -210,20 +447,26 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
                   selectedCategory = catData['id'].toString();
                 }
               });
+              // If searching, re-run search with new category
+              if (searchQuery.isNotEmpty) {
+                searchQuestions(searchQuery);
+              }
             },
             child: Container(
-              margin: EdgeInsets.only(right: 8, top: 10),
+              margin: EdgeInsets.only(right: 8),
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected ? TeacherQAColors.color0 : TeacherQAColors.color3,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Text(
-                category == 'all' ? 'All Subjects' : category,
-                style: TextStyle(
-                  color: TeacherQAColors.white,
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              child: Center(
+                child: Text(
+                  category == 'all' ? 'All Subjects' : category,
+                  style: TextStyle(
+                    color: TeacherQAColors.white,
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
                 ),
               ),
             ),
@@ -242,36 +485,46 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.inbox_outlined,
+              searchQuery.isNotEmpty ? Icons.search_off : Icons.inbox_outlined,
               size: 64,
               color: TeacherQAColors.white54,
             ),
             SizedBox(height: 16),
             Text(
-              selectedCategory == 'all' 
-                  ? 'No questions yet' 
-                  : 'No questions for this subject',
+              searchQuery.isNotEmpty 
+                  ? 'No results found for "$searchQuery"'
+                  : (selectedCategory == 'all' 
+                      ? 'No questions yet' 
+                      : 'No questions for this subject'),
               style: TextStyle(
                 color: TeacherQAColors.white54,
-                fontSize: 18,
+                fontSize: 16,
               ),
+              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
-            Text(
-              'Students will ask questions in your assigned subjects',
-              style: TextStyle(
-                color: TeacherQAColors.white54,
-                fontSize: 14,
+            if (searchQuery.isNotEmpty) ...[
+              SizedBox(height: 8),
+              Text(
+                'Try a different search term',
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 14,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: fetchData,
+      onRefresh: () async {
+        clearSearch();
+        await fetchData();
+      },
+      color: TeacherQAColors.color0,
       child: ListView.builder(
+        padding: EdgeInsets.only(top: 8, bottom: 16),
         itemCount: filteredQuestions.length,
         itemBuilder: (context, index) {
           final question = filteredQuestions[index];
@@ -283,8 +536,8 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
 
   Widget _buildQuestionCard(dynamic question) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: EdgeInsets.all(16),
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: TeacherQAColors.color3,
         borderRadius: BorderRadius.circular(16),
@@ -300,13 +553,13 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
         children: [
           Row(
             children: [
-              Icon(Icons.person, color: TeacherQAColors.color0, size: 16),
-              SizedBox(width: 8),
+              Icon(Icons.person, color: TeacherQAColors.color0, size: 14),
+              SizedBox(width: 6),
               Text(
                 question['student_name'] ?? 'Unknown Student',
                 style: TextStyle(
                   color: TeacherQAColors.white,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -315,45 +568,45 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
                 _formatDate(question['created_at']),
                 style: TextStyle(
                   color: TeacherQAColors.white54,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8),
+          SizedBox(height: 6),
           Row(
             children: [
-              Icon(Icons.school, color: TeacherQAColors.color0, size: 16),
-              SizedBox(width: 8),
+              Icon(Icons.school, color: TeacherQAColors.color0, size: 14),
+              SizedBox(width: 6),
               Text(
                 question['category_name'] ?? 'Unknown Category',
                 style: TextStyle(
                   color: TeacherQAColors.color0,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               if ((question['accepted_answers'] ?? 0) > 0) ...[
-                SizedBox(width: 16),
-                Icon(Icons.check_circle, color: Colors.green, size: 16),
+                SizedBox(width: 12),
+                Icon(Icons.check_circle, color: Colors.green, size: 14),
                 SizedBox(width: 4),
                 Text(
                   'Answered',
                   style: TextStyle(
                     color: Colors.green,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 10),
           Text(
             question['title'] ?? 'No title',
             style: TextStyle(
               color: TeacherQAColors.white,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -362,21 +615,21 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
             question['content'] ?? '',
             style: TextStyle(
               color: TeacherQAColors.white70,
-              fontSize: 14,
+              fontSize: 13,
             ),
-            maxLines: 3,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 10),
           Row(
             children: [
-              Icon(Icons.message, color: TeacherQAColors.white54, size: 14),
+              Icon(Icons.message, color: TeacherQAColors.white54, size: 12),
               SizedBox(width: 4),
               Text(
                 '${question['answer_count'] ?? 0} answers',
                 style: TextStyle(
                   color: TeacherQAColors.white54,
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
               ),
               Spacer(),
@@ -384,7 +637,7 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
                 onPressed: () => _showAnswerDialog(question),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: TeacherQAColors.color0,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -393,7 +646,7 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
                   'Answer',
                   style: TextStyle(
                     color: TeacherQAColors.white,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -411,7 +664,10 @@ class _TeacherQADashboardState extends State<TeacherQADashboard> {
       MaterialPageRoute(
         builder: (context) => AnswerQuestionScreen(
           question: question,
-          onAnswerCreated: fetchData,
+          onAnswerCreated: () {
+            clearSearch();
+            fetchData();
+          },
         ),
       ),
     );
@@ -464,18 +720,6 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
       final user = Provider.of<AuthProvider>(context, listen: false).user;
       if (user == null) {
         throw Exception('User not authenticated');
-      }
-
-      final answerData = {
-        'user_id': user.id,
-        'post_id': widget.question['post_id'],
-        'content': _answerController.text,
-        'visibility': selectedVisibility,
-      };
-
-      // For private answers, include target student
-      if (selectedVisibility == 'private') {
-        answerData['target_student_id'] = widget.question['user_id']; // Original question author
       }
 
       await ApiService.createAnswer(
@@ -716,3 +960,4 @@ class _AnswerQuestionScreenState extends State<AnswerQuestionScreen> {
     );
   }
 }
+

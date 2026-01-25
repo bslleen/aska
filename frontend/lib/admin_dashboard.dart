@@ -170,6 +170,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             SnackBar(content: const Text('Report dismissed successfully', style: TextStyle(color: Colors.white)), backgroundColor: color2),
           );
           await _loadReportedContent();
+          
+          // Switch to Posts tab so the admin can see the post
+          setState(() {
+            _selectedTab = 1; // Switch to Posts tab
+          });
+          await _loadPosts(); // Load posts to show the dismissed post
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -575,7 +581,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       Row(
                         children: [
                           ElevatedButton.icon(
-                            onPressed: () => _dismissReport(item['report_id'], 'post'),
+                            onPressed: () => _dismissReport(int.parse(item['report_id'].toString()), 'post'),
                             icon: const Icon(Icons.check),
                             label: const Text('Dismiss'),
                             style: ElevatedButton.styleFrom(
@@ -671,7 +677,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       Row(
                         children: [
                           ElevatedButton.icon(
-                            onPressed: () => _dismissReport(item['report_id'], 'reply'),
+                            onPressed: () => _dismissReport(int.parse(item['report_id'].toString()), 'reply'),
                             icon: const Icon(Icons.check),
                             label: const Text('Dismiss'),
                             style: ElevatedButton.styleFrom(

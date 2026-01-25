@@ -615,6 +615,35 @@ static Future<Map<String, dynamic>> createCategory({
   }
 
   // ------------------------------
+  // SEARCH TEACHER QUESTIONS (QA System)
+  // ------------------------------
+  static Future<Map<String, dynamic>> searchTeacherQuestions({
+    required int teacherId,
+    required String query,
+    String searchType = 'all', // 'student', 'keyword', 'all'
+    String categoryId = 'all',
+  }) async {
+    print('API Service - searchTeacherQuestions called');
+    print('Teacher ID: $teacherId');
+    print('Query: $query');
+    print('Search Type: $searchType');
+    print('Category ID: $categoryId');
+    
+    String url = '$baseUrl/search_teacher_questions.php?teacher_id=$teacherId&query=$query&search_type=$searchType&category_id=$categoryId';
+    
+    final response = await http.get(Uri.parse(url));
+    
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to search teacher questions: ${response.body}');
+    }
+  }
+
+  // ------------------------------
   // ASSIGN TEACHER TO CATEGORY (Admin only)
   // ------------------------------
   static Future<Map<String, dynamic>> assignTeacherCategory({
