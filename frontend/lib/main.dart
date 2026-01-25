@@ -32,13 +32,12 @@ class SplashScreenWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        if (authProvider.isLoading) {
-          return const SplashScreen(
-            nextScreen: AuthWrapper(),
-          );
-        }
-
-        return const AuthWrapper();
+        // Always show splash screen first for a brief moment
+        // This ensures the splash screen appears every time the app launches
+        // Similar to Instagram, YouTube, Spotify apps
+        return const SplashScreen(
+          nextScreen: AuthWrapper(),
+        );
       },
     );
   }
@@ -50,6 +49,15 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+
+    // Show loading indicator during auth operations
+    if (authProvider.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     if (authProvider.user == null) {
       return const AuthScreen();
